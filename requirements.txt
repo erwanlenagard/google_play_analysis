@@ -1,0 +1,12 @@
+matplotlib==3.3.4
+pandas==1.2.4
+spacy_lefff==0.4.0
+gensim==4.0.1
+spacy==3.0.4
+plotly==4.14.3
+streamlit==0.82.0
+~umpy==1.20.1
+wordcloud==1.8.1
+google_play_scraper==1.0.0
+numpy==1.21.1
+scikit_learn==0.24.2
