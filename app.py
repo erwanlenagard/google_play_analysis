@@ -19,7 +19,7 @@ import gensim.corpora as corpora
 from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
-from spacy import load
+# from spacy import load
 
 
 #####################################################
@@ -413,10 +413,10 @@ def main():
 #     no_topics = st.sidebar.number_input("Combien de topics à détecter", min_value=0, max_value=None,value=20, step=1)
     
     if st.sidebar.button("Valider"):
-        if lang=='en':
-            import en_core_web_sm
-        else:
-            import fr_core_web_sm
+#         if lang=='en':
+#             import en_core_web_sm
+#         else:
+#             import fr_core_web_sm
 
         
         try:
