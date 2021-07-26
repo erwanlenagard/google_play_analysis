@@ -4,7 +4,7 @@ import pandas as pd
 from pandas import json_normalize
 import base64
 from google_play_scraper import app, Sort, reviews_all
-# import plotly.express as px
+import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
@@ -52,21 +52,21 @@ def create_pos_tagger(nlp, name):
 def tokenize_text(df,col_name,lang):
     lemma = []
     if lang=='fr':
-        nlp = spacy.load('fr_core_news_sm')
+        nlp = spacy.load('fr_core_news_sm',disable=['senter', 'ner', 'attribute_ruler'])
         nlp.add_pipe('pos', name='pos', after='parser')
         nlp.add_pipe('french_lemmatizer', name='lefff', after='pos')
        
     if lang=='en':
-        nlp = spacy.load('en_core_web_sm')
+        nlp = spacy.load('en_core_web_sm',disable=['senter', 'ner', 'attribute_ruler'])
         nlp.add_pipe('pos', name='pos', after='parser')
     i=0    
     
-    for doc in nlp.pipe(df[col_name].astype('unicode').values, batch_size=50,n_process=5):
+    for doc in nlp.pipe(df[col_name].astype('unicode').values, batch_size=1000,n_process=2):
         i=i+1
-        if doc.is_parsed:          
+        if doc.has_annotation("DEP"):          
             lemma.append([n.lemma_.lower().translate(str.maketrans('', '', string.punctuation+'’')) for n in doc if n.pos_ in ["VERB","NOUN","ADJ","PROPN","ADV","SYM"]])
         else:
-            lemma.append(None)
+            lemma.append('')
 
     df['lemma']=[' '.join(map(str, l)) for l in lemma]
 #     df['lemma']=lemma
@@ -319,13 +319,14 @@ def query_reviews(app_id,lang,country):
 
 def sample_reviews(df_reviews,dt_min_date):
     if len(df_reviews)>1000:
+        df_reviews=df_reviews[df_reviews['content'].str.len()>0]
         df_reviews_subset=df_reviews[df_reviews['at']>dt_min_date]
         if len(df_reviews_subset)>1000:
             df_sample=df_reviews_subset.sample(n=1000, random_state=42)
         else:
             df_sample=df_reviews_subset
     else:
-        df_sample=df_reviews
+        df_sample=df_reviews[df_reviews['content'].str.len()>0]
         
     return df_sample
 
@@ -427,177 +428,177 @@ def main():
             st.error("Impossible de collecter les infos sur cette application")
             
             
-        try:
-            with st.spinner("Collecte des reviews en cours"):
-                # Récupération des reviews
-                result_reviews = query_reviews(app_id,lang,country)
+#         try:
+        with st.spinner("Collecte des reviews en cours"):
+            # Récupération des reviews
+            result_reviews = query_reviews(app_id,lang,country)
 
-            if len(result_reviews)>0:
+        if len(result_reviews)>0:
 
-                try:
-                    # Mise en forme des données
-                    df_reviews=parsing_reviews(result_reviews,app_id,country)
+            try:
+                # Mise en forme des données
+                df_reviews=parsing_reviews(result_reviews,app_id,country)
 
-                    #calcul de la date correspondant au dernier trimestre et au dernier semestre
-                    dt_min_date=(df_reviews["at"].max()-timedelta(days=90))
-                    dt_min_date_12months=(df_reviews["at"].max()-timedelta(days=365))
-
-
-                    df_reviews.sort_values(by='at', ascending=True,inplace=True)
-                    df_reviews["month"]=pd.to_datetime(df_reviews['at']).dt.strftime('%Y-%m')
-
-                    #agrégation des données (réponses du développeur)
-                    df_dev=df_reviews[['month','Réponses']].groupby("month").agg({'Réponses':'sum'}).reset_index()
-                    df_dev['Total reviews']=df_reviews.groupby("month").agg({'reviewId':'nunique'}).reset_index()['reviewId']
-                    df_dev['Taux de réponse']=df_dev['Réponses']/df_dev['Total reviews']    
+                #calcul de la date correspondant au dernier trimestre et au dernier semestre
+                dt_min_date=(df_reviews["at"].max()-timedelta(days=90))
+                dt_min_date_12months=(df_reviews["at"].max()-timedelta(days=365))
 
 
-                    st.subheader("Commentaires sur Google Play Store")
-                    fig,df_sentiment=barchart_sentiment_relative(df_reviews) 
+                df_reviews.sort_values(by='at', ascending=True,inplace=True)
+                df_reviews["month"]=pd.to_datetime(df_reviews['at']).dt.strftime('%Y-%m')
 
-                    st.write(str(len(df_reviews))+ " commentaires ont été posté depuis le "+str(df_reviews["at"].min().strftime('%d-%m-%Y'))+" ("+str(len(df_reviews[df_reviews["at"]>dt_min_date_12months]))+" sur les 12 derniers mois) . La notation moyenne la plus basse était de "+str(round(df_sentiment['score'].min(),2))+" le "+ str(df_sentiment[df_sentiment['score'] == min(df_sentiment['score'])]['month'].values[0])+" . La notation la plus élevée était de "+str(round(df_sentiment['score'].max(),2))+ " le "+ str(df_sentiment[df_sentiment['score'] == max(df_sentiment['score'])]['month'].values[0]), unsafe_allow_html=True)
-                    st.plotly_chart(fig, use_container_width=True, sharing='streamlit')
-                except:
-                    pass
-                    st.info("Impossible d'analyser les reviews")
-
+                #agrégation des données (réponses du développeur)
+                df_dev=df_reviews[['month','Réponses']].groupby("month").agg({'Réponses':'sum'}).reset_index()
+                df_dev['Total reviews']=df_reviews.groupby("month").agg({'reviewId':'nunique'}).reset_index()['reviewId']
+                df_dev['Taux de réponse']=df_dev['Réponses']/df_dev['Total reviews']    
 
 
+                st.subheader("Commentaires sur Google Play Store")
+                fig,df_sentiment=barchart_sentiment_relative(df_reviews) 
 
-                # Analyse des réponses du developpeur    
-
-                st.subheader("Réponses du développeur")
-                if len(df_reviews[df_reviews["replyContent"].str.len()>0])>0:
-                    df_replies=df_reviews[df_reviews["replyContent"].str.len()>0]
-                    nb_replies=len(df_replies)
-                    nb_replies_12months=len(df_replies[df_replies["at"]>dt_min_date_12months])
-
-                    per_replies=(nb_replies/len(df_reviews))*100
-
-                    st.write(str(nb_replies)+ " commentaires ont été posté depuis le "+str(df_replies["at"].min().strftime('%d-%m-%Y'))+" ("+str(nb_replies_12months)+" sur les 12 derniers mois) . Le taux de réponse moyen s'élève à "+str(round(per_replies,1))+"%.", unsafe_allow_html=True)
-                    fig=barchart_dev_replies(df_dev)
-                    st.plotly_chart(fig, use_container_width=True, sharing='streamlit')
-                else:
-                    st.info("Le développeur n'a répondu a aucun commentaires")
-
-                # on splitte nos reviews selon le sentiment. On retient un max de 1000 reviews sur les 3 derniers mois   
-
-                df_negative_reviews=sample_reviews(df_reviews[df_reviews['score']<4],dt_min_date)
-                df_positive_reviews=sample_reviews(df_reviews[df_reviews['score']>3],dt_min_date)
-                stop_words=get_stopwords(lang)
-
-
-
-                if len(df_negative_reviews)>100:  
-                    with st.spinner("Analyse de "+str(len(df_negative_reviews))+" reviews récentes en cours - un peu de patience ! :)"):
-                        no_topics=define_no_topics(df_negative_reviews)
-                        df_negative_reviews, df_neg_topics, df_neg_tfidf, document_matrix_neg, feature_names_neg, neg_cloud = pipeline_nlp(df_negative_reviews,lang,stop_words,no_topics)
-
-                        neg_is_ok=True
-
-                else:
-                    neg_is_ok=False
-
-                if len(df_positive_reviews)>100:
-                    with st.spinner("Analyse de "+str(len(df_positive_reviews))+" reviews récentes en cours - un peu de patience ! :)"):
-                        no_topics=define_no_topics(df_positive_reviews)
-                        df_positive_reviews, df_pos_topics, df_pos_tfidf, document_matrix_pos, feature_names_pos, pos_cloud = pipeline_nlp(df_positive_reviews,lang,stop_words,no_topics)
-                        pos_is_ok=True
-                else:
-                    pos_is_ok=False
-
-
-
-                if pos_is_ok is True or neg_is_ok is True:
-                    st.subheader("Termes spécifiques")
-                    st.write("<p>Les 50 termes les plus spécifiques aux reviews récentes</p><br/>",unsafe_allow_html=True)             
-                    col1, col2 = st.beta_columns(2)
-                    with col1:
-
-                        st.write("<h4>Reviews négatives</h4><br/><br/>",unsafe_allow_html=True)  
-                        if neg_is_ok is True :
-                            plt.imshow(neg_cloud, interpolation='bilinear')
-                            plt.axis("off")
-                            st.image(neg_cloud.to_array(),use_column_width='auto')
-
-                        else:
-                            st.info("Il n'y a pas suffisamment de reviews négatives à analyser")
-
-                    with col2:
-                        st.write("<h4>Reviews positives</h4><br/><br/>",unsafe_allow_html=True)
-                        if pos_is_ok is True :
-                            plt.imshow(pos_cloud, interpolation='bilinear')
-                            plt.axis("off")
-                            st.image(pos_cloud.to_array(),use_column_width='auto')
-                        else:
-                            st.info("Il n'y a pas suffisamment de reviews positives à analyser")
-
-
-                    st.subheader("Sujets principaux")
-                    st.write("Les reviews récentes sont classées en 10 sujets principaux.")
-                    col1, col2 = st.beta_columns(2)
-                    with col1:
-                        st.write("<h4>Reviews négatives</h4><br/><br/>",unsafe_allow_html=True)
-                        if neg_is_ok is True :
-                            df_negative_reviews=pd.merge(df_negative_reviews,df_neg_topics, how='left', left_on='NMF Topic', right_on='index')
-
-                            df_pie_neg = df_negative_reviews[["topic_title","reviewId"]].groupby(["topic_title"]).agg({"reviewId":"nunique"}).reset_index().sort_values(by='reviewId',ascending=False)
-
-                            fig = px.pie(df_pie_neg, values='reviewId', names='topic_title', title='Principaux pain points')
-                            st.plotly_chart(fig, use_container_width=True, sharing='streamlit')
-
-                        else:
-                            st.info("Il n'y a pas suffisamment de reviews négatives à analyser")
-
-                    with col2:
-                        st.write("<h4>Reviews positives</h4><br/><br/>",unsafe_allow_html=True)
-
-                        if pos_is_ok is True :
-                            df_positive_reviews=pd.merge(df_positive_reviews,df_pos_topics, how='left', left_on='NMF Topic', right_on='index')
-
-                            df_pie_pos = df_positive_reviews[["topic_title","reviewId"]].groupby(["topic_title"]).agg({"reviewId":"nunique"}).reset_index().sort_values(by='reviewId',ascending=False)
-
-                            fig = px.pie(df_pie_pos, values='reviewId', names='topic_title', title='Principaux points d\'appréciation')
-                            st.plotly_chart(fig, use_container_width=True, sharing='streamlit')
-                        else:
-                            st.info("Il n'y a pas suffisamment de reviews positives à analyser")
-
-
-                    if pos_is_ok is True :
-                        st.subheader("Verbatims positifs")
-                        st.write("Consultez les reviews les plus pertinentes par sujet") 
-                        # POUR CHAQUE TOPIC, ON AFFICHE LES ARTICLES CLASSES            
-                        for n in sorted(df_positive_reviews['NMF Topic'].unique()):
-                            d=df_positive_reviews[df_positive_reviews['NMF Topic']==n].sort_values(by='NMF Proba',ascending=False)
-
-                            with st.beta_expander("Sujet n°"+str(n+1)+" - "+d['topic_title'].min()+" - "+str(round(len(d)/len(df_positive_reviews)*100,1))+"% des reviews récentes - score moyen : "+str(round(d['score'].mean(),1))):
-                                 st.table(d[['content','sentiment']][:15].assign(hack='').set_index('hack'))
-
-
-                    if neg_is_ok is True :
-                        st.subheader("Verbatims négatifs")
-                        st.write("Consultez les reviews les plus pertinentes par sujet") 
-                        # POUR CHAQUE TOPIC, ON AFFICHE LES ARTICLES CLASSES            
-                        for n in sorted(df_negative_reviews['NMF Topic'].unique()):
-                            d=df_negative_reviews[df_negative_reviews['NMF Topic']==n].sort_values(by='NMF Proba',ascending=False)
-
-                            with st.beta_expander("Sujet n°"+str(n+1)+" - "+d['topic_title'].min()+" - "+str(round(len(d)/len(df_negative_reviews)*100,1))+"% des reviews récentes - score moyen : "+str(round(d['score'].mean(),1))):
-                                 st.table(d[['content','sentiment']][:15].assign(hack='').set_index('hack'))    
+                st.write(str(len(df_reviews))+ " commentaires ont été posté depuis le "+str(df_reviews["at"].min().strftime('%d-%m-%Y'))+" ("+str(len(df_reviews[df_reviews["at"]>dt_min_date_12months]))+" sur les 12 derniers mois) . La notation moyenne la plus basse était de "+str(round(df_sentiment['score'].min(),2))+" le "+ str(df_sentiment[df_sentiment['score'] == min(df_sentiment['score'])]['month'].values[0])+" . La notation la plus élevée était de "+str(round(df_sentiment['score'].max(),2))+ " le "+ str(df_sentiment[df_sentiment['score'] == max(df_sentiment['score'])]['month'].values[0]), unsafe_allow_html=True)
+                st.plotly_chart(fig, use_container_width=True, sharing='streamlit')
+            except:
+                pass
+                st.info("Impossible d'analyser les reviews")
 
 
 
 
-                else:
-                    st.info("Il n'y a pas suffisamment de reviews à analyser")
+            # Analyse des réponses du developpeur    
+
+            st.subheader("Réponses du développeur")
+            if len(df_reviews[df_reviews["replyContent"].str.len()>0])>0:
+                df_replies=df_reviews[df_reviews["replyContent"].str.len()>0]
+                nb_replies=len(df_replies)
+                nb_replies_12months=len(df_replies[df_replies["at"]>dt_min_date_12months])
+
+                per_replies=(nb_replies/len(df_reviews))*100
+
+                st.write(str(nb_replies)+ " commentaires ont été posté depuis le "+str(df_replies["at"].min().strftime('%d-%m-%Y'))+" ("+str(nb_replies_12months)+" sur les 12 derniers mois) . Le taux de réponse moyen s'élève à "+str(round(per_replies,1))+"%.", unsafe_allow_html=True)
+                fig=barchart_dev_replies(df_dev)
+                st.plotly_chart(fig, use_container_width=True, sharing='streamlit')
+            else:
+                st.info("Le développeur n'a répondu a aucun commentaires")
+
+            # on splitte nos reviews selon le sentiment. On retient un max de 1000 reviews sur les 3 derniers mois   
+
+            df_negative_reviews=sample_reviews(df_reviews[df_reviews['score']<4],dt_min_date)
+            df_positive_reviews=sample_reviews(df_reviews[df_reviews['score']>3],dt_min_date)
+            stop_words=get_stopwords(lang)
+
+
+
+            if len(df_negative_reviews)>100:  
+                with st.spinner("Analyse de "+str(len(df_negative_reviews))+" reviews récentes en cours - un peu de patience ! :)"):
+                    no_topics=define_no_topics(df_negative_reviews)
+                    df_negative_reviews, df_neg_topics, df_neg_tfidf, document_matrix_neg, feature_names_neg, neg_cloud = pipeline_nlp(df_negative_reviews,lang,stop_words,no_topics)
+
+                    neg_is_ok=True
 
             else:
-                    st.info("Il n'y a pas de reviews à analyser")
+                neg_is_ok=False
+
+            if len(df_positive_reviews)>100:
+                with st.spinner("Analyse de "+str(len(df_positive_reviews))+" reviews récentes en cours - un peu de patience ! :)"):
+                    no_topics=define_no_topics(df_positive_reviews)
+                    df_positive_reviews, df_pos_topics, df_pos_tfidf, document_matrix_pos, feature_names_pos, pos_cloud = pipeline_nlp(df_positive_reviews,lang,stop_words,no_topics)
+                    pos_is_ok=True
+            else:
+                pos_is_ok=False
 
 
-    
-        except:
-            pass
-            st.error("Impossible de récupérer les reviews pour cette application")
+
+            if pos_is_ok is True or neg_is_ok is True:
+                st.subheader("Termes spécifiques")
+                st.write("<p>Les 50 termes les plus spécifiques aux reviews récentes</p><br/>",unsafe_allow_html=True)             
+                col1, col2 = st.beta_columns(2)
+                with col1:
+
+                    st.write("<h4>Reviews négatives</h4><br/><br/>",unsafe_allow_html=True)  
+                    if neg_is_ok is True :
+                        plt.imshow(neg_cloud, interpolation='bilinear')
+                        plt.axis("off")
+                        st.image(neg_cloud.to_array(),use_column_width='auto')
+
+                    else:
+                        st.info("Il n'y a pas suffisamment de reviews négatives à analyser")
+
+                with col2:
+                    st.write("<h4>Reviews positives</h4><br/><br/>",unsafe_allow_html=True)
+                    if pos_is_ok is True :
+                        plt.imshow(pos_cloud, interpolation='bilinear')
+                        plt.axis("off")
+                        st.image(pos_cloud.to_array(),use_column_width='auto')
+                    else:
+                        st.info("Il n'y a pas suffisamment de reviews positives à analyser")
+
+
+                st.subheader("Sujets principaux")
+                st.write("Les reviews récentes sont classées en 10 sujets principaux.")
+                col1, col2 = st.beta_columns(2)
+                with col1:
+                    st.write("<h4>Reviews négatives</h4><br/><br/>",unsafe_allow_html=True)
+                    if neg_is_ok is True :
+                        df_negative_reviews=pd.merge(df_negative_reviews,df_neg_topics, how='left', left_on='NMF Topic', right_on='index')
+
+                        df_pie_neg = df_negative_reviews[["topic_title","reviewId"]].groupby(["topic_title"]).agg({"reviewId":"nunique"}).reset_index().sort_values(by='reviewId',ascending=False)
+
+                        fig = px.pie(df_pie_neg, values='reviewId', names='topic_title', title='Principaux pain points')
+                        st.plotly_chart(fig, use_container_width=True, sharing='streamlit')
+
+                    else:
+                        st.info("Il n'y a pas suffisamment de reviews négatives à analyser")
+
+                with col2:
+                    st.write("<h4>Reviews positives</h4><br/><br/>",unsafe_allow_html=True)
+
+                    if pos_is_ok is True :
+                        df_positive_reviews=pd.merge(df_positive_reviews,df_pos_topics, how='left', left_on='NMF Topic', right_on='index')
+
+                        df_pie_pos = df_positive_reviews[["topic_title","reviewId"]].groupby(["topic_title"]).agg({"reviewId":"nunique"}).reset_index().sort_values(by='reviewId',ascending=False)
+
+                        fig = px.pie(df_pie_pos, values='reviewId', names='topic_title', title='Principaux points d\'appréciation')
+                        st.plotly_chart(fig, use_container_width=True, sharing='streamlit')
+                    else:
+                        st.info("Il n'y a pas suffisamment de reviews positives à analyser")
+
+
+                if pos_is_ok is True :
+                    st.subheader("Verbatims positifs")
+                    st.write("Consultez les reviews les plus pertinentes par sujet") 
+                    # POUR CHAQUE TOPIC, ON AFFICHE LES ARTICLES CLASSES            
+                    for n in sorted(df_positive_reviews['NMF Topic'].unique()):
+                        d=df_positive_reviews[df_positive_reviews['NMF Topic']==n].sort_values(by='NMF Proba',ascending=False)
+
+                        with st.beta_expander("Sujet n°"+str(n+1)+" - "+d['topic_title'].min()+" - "+str(round(len(d)/len(df_positive_reviews)*100,1))+"% des reviews récentes - score moyen : "+str(round(d['score'].mean(),1))):
+                             st.table(d[['content','sentiment']][:15].assign(hack='').set_index('hack'))
+
+
+                if neg_is_ok is True :
+                    st.subheader("Verbatims négatifs")
+                    st.write("Consultez les reviews les plus pertinentes par sujet") 
+                    # POUR CHAQUE TOPIC, ON AFFICHE LES ARTICLES CLASSES            
+                    for n in sorted(df_negative_reviews['NMF Topic'].unique()):
+                        d=df_negative_reviews[df_negative_reviews['NMF Topic']==n].sort_values(by='NMF Proba',ascending=False)
+
+                        with st.beta_expander("Sujet n°"+str(n+1)+" - "+d['topic_title'].min()+" - "+str(round(len(d)/len(df_negative_reviews)*100,1))+"% des reviews récentes - score moyen : "+str(round(d['score'].mean(),1))):
+                             st.table(d[['content','sentiment']][:15].assign(hack='').set_index('hack'))    
+
+
+
+
+            else:
+                st.info("Il n'y a pas suffisamment de reviews à analyser")
+
+        else:
+                st.info("Il n'y a pas de reviews à analyser")
+
+
+
+#         except:
+#             pass
+#             st.error("Impossible de récupérer les reviews pour cette application")
     
 if __name__ == "__main__":
     main()    
