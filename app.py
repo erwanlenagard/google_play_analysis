@@ -61,7 +61,7 @@ def tokenize_text(df,col_name,lang):
         nlp.add_pipe('pos', name='pos', after='parser')
     i=0    
     
-    for doc in nlp.pipe(df[col_name].astype('unicode').values, batch_size=1000,n_process=2):
+    for doc in nlp.pipe(df[col_name].astype('unicode').values, batch_size=500,n_process=1):
         i=i+1
         if doc.has_annotation("DEP"):          
             lemma.append([n.lemma_.lower().translate(str.maketrans('', '', string.punctuation+'’')) for n in doc if n.pos_ in ["VERB","NOUN","ADJ","PROPN","ADV","SYM"]])
