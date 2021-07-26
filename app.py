@@ -61,7 +61,7 @@ def tokenize_text(df,col_name,lang):
         nlp.add_pipe('pos', name='pos', after='parser')
     i=0    
     
-    for doc in nlp.pipe(df[col_name].astype('unicode').values, batch_size=500,n_process=1):
+    for doc in nlp.pipe(df[col_name].astype('unicode').values, batch_size=10,n_process=1):
         i=i+1
         if doc.has_annotation("DEP"):          
             lemma.append([n.lemma_.lower().translate(str.maketrans('', '', string.punctuation+'’')) for n in doc if n.pos_ in ["VERB","NOUN","ADJ","PROPN","ADV","SYM"]])
@@ -314,7 +314,7 @@ def query_app(app_id,lang,country):
 
 
 def query_reviews(app_id,lang,country):
-    return reviews_all(app_id,sleep_milliseconds=0, lang=lang, country=country, sort=Sort.MOST_RELEVANT, filter_score_with=None)
+    return reviews_all(app_id,sleep_milliseconds=0, lang=lang, country=country, sort=Sort.NEWEST, filter_score_with=None)
 
 
 def sample_reviews(df_reviews,dt_min_date):
