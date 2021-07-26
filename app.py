@@ -20,6 +20,7 @@ from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
 # from spacy import load
+import line_profiler
 
 
 #####################################################
@@ -67,17 +68,17 @@ def tokenize_text(df,col_name,lang):
         else:
             lemma.append(None)
 
-#     df['lemma']=[' '.join(map(str, l)) for l in lemma]
-    df['lemma']=lemma
+    df['lemma']=[' '.join(map(str, l)) for l in lemma]
+#     df['lemma']=lemma
     return df
 
 
 def pipeline_nlp(df_sample,lang,stop_words,no_topics):
     df_sample=tokenize_text(df_sample,'content',lang)
     
-    tokenized_data_bigrams,tokenized_data_trigrams=create_bigrams_trigrams(df_sample['lemma'])
-    df_sample=detokenization(df_sample,tokenized_data_trigrams)
-    vectorizer,document_matrix,feature_names=vectorize(df_sample['detokenized_text'],5000,stop_words)    
+#     tokenized_data_bigrams,tokenized_data_trigrams=create_bigrams_trigrams(df_sample['lemma'])
+#     df_sample=detokenization(df_sample,tokenized_data_trigrams)
+    vectorizer,document_matrix,feature_names=vectorize(df_sample['lemma'],5000,stop_words)    
 
     nmf_model = NMF(n_components=no_topics, random_state=42, alpha=.1, l1_ratio=.5, init='nndsvd',max_iter=1000).fit(document_matrix)
     
@@ -96,43 +97,10 @@ def pipeline_nlp(df_sample,lang,stop_words,no_topics):
     return df_sample,df_topics,df_tfidf, document_matrix,feature_names,Cloud
 
 
-# Define functions for creating bigrams and trigrams.
-
-def make_bigrams(texts,bigram_mod):
-    return [bigram_mod[doc] for doc in texts]
-
-def make_trigrams(texts,bigram_mod,trigram_mod):
-    return [trigram_mod[bigram_mod[doc]] for doc in texts]
-
-def create_bigrams_trigrams(docs):
-    # Build the bigram and trigram models
-    bigram = gensim.models.Phrases(docs, min_count=5, threshold=10) # higher threshold fewer phrases.
-    # Faster way to get a sentence clubbed as a trigram/bigram
-    bigram_mod = gensim.models.phrases.Phraser(bigram)
-    tokenized_data_bigrams = make_bigrams(docs,bigram_mod)
-    
-    trigram = gensim.models.Phrases(bigram[docs], threshold=10)
-    trigram_mod = gensim.models.phrases.Phraser(trigram)
-    tokenized_data_trigrams = make_trigrams(docs,bigram_mod,trigram_mod)
-    
-    return tokenized_data_bigrams,tokenized_data_trigrams
-
-
-def detokenization(df,tokenized_data_trigrams):
-    # de-tokenization, combine tokens together
-    detokenized_data = []
-    for i in range(len(df)):
-        t = ' '.join(tokenized_data_trigrams[i])
-        detokenized_data.append(t)
-    df['detokenized_text']= detokenized_data
-    documents = df['detokenized_text']
-    return df
-
-
 def vectorize(documents,no_terms,stop_words):
     # NMF uses the tf-idf count vectorizer
     # Initialise the count vectorizer with the English stop words
-    vectorizer = TfidfVectorizer(max_df=0.5, min_df=2, max_features=no_terms, stop_words=stop_words)
+    vectorizer = TfidfVectorizer(max_df=0.5, min_df=2, max_features=no_terms, stop_words=stop_words,ngram_range=(1,2))
     # Fit and transform the text
     document_matrix = vectorizer.fit_transform(documents)
     #get features
@@ -216,14 +184,12 @@ def barchart_sentiment_relative(df_reviews):
     df_sentiment=df_reviews.groupby(["month","sentiment"]).agg({"reviewId":"nunique"})
     df_sentiment['%reviews']=df_sentiment.groupby(level=0).apply(lambda x:100 * x / float(x.sum()))
     df_sentiment=df_sentiment.reset_index()
-#     df_sentiment=df_sentiment.reset_index().sort_values(by="month",ascending=False)
     df_sentiment=df_sentiment.pivot(index="month", columns="sentiment", values="%reviews").reset_index()
     df_sentiment["reviews_count"]=df_gb['reviewId']
     df_sentiment["score"]=df_gb['score']   
 
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-    
     
     if "positif" in df_sentiment.columns:
         fig.add_trace(go.Bar(
@@ -343,9 +309,6 @@ def barchart_dev_replies(df):
 
 
 
-
-
-
 def query_app(app_id,lang,country):
     return app(app_id,lang=lang, country=country)
 
@@ -393,7 +356,9 @@ def define_no_topics(df):
                 no_topics=8       
     
     return no_topics
-        
+
+
+
 
 
 def main():
@@ -450,6 +415,15 @@ def main():
             with col2:
                 try:
                     df_histogram=process_histogram(result_app)
+                    
+                    
+                    
+                    profiler = line_profiler.LineProfiler()
+                    wrapper = profiler(process_histogram)
+                    wrapper(result_app)
+                    st.write(profiler.print_stats())
+                    
+                    
                     fig=histogram_score(df_histogram,'reviews','Note','%reviews',['#ff6f31','#ff9f02','#ffcf02','#9ace6a','#57bb8a'])
                     st.plotly_chart(fig, use_container_width=False, sharing='streamlit') 
                 except:
