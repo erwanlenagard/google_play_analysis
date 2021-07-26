@@ -14,13 +14,10 @@ from spacy_lefff import LefffLemmatizer, POSTagger
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import NMF
 import string
-# import gensim
-# import gensim.corpora as corpora
 from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
-# from spacy import load
-# import line_profiler
+
 
 
 #####################################################
@@ -30,9 +27,7 @@ from wordcloud import WordCloud
 
 @st.cache()
 def get_stopwords(language):
-    #     nltk.download("stopwords")
     stop_words=[]
-#     stop_words = stopwords.words(language)
     if language=="fr":
         stop_words=['a','à','acré','adieu','afin','ah','ai','aie','aïe','aient','aies','ailleurs','ains','ainsi','ait','alentour','alentours','alias','alléluia','allo','allô','alors','amen','an','ans','anti','après','arrière','as','ase','assez','atchoum','au','aube','aucun','aucune','aucunement','aucunes','aucuns','audit','auparavant','auprès','auquel','aura','aurai','auraient','aurais','aurait','auras','aurez','auriez','aurions','aurons','auront','aussi','autant','autour','autours','autre','autrefois','autres','autrui','aux','auxdits','auxquelles','auxquels','avaient','avais','avait','avant','avants','avec','avez','aviez','avions','avoir','avons','ayant','ayez','ayons','b','badabam','badaboum','bah','balpeau','banco','bang','basta','baste','bé','beaucoup','bcp','ben','berk','bernique','beu','beuark','beurk','bien','biens','bigre','bim','bing','bis','bof','bon','bonne','bonnes','bons','boudiou','boudu','bouf','bougre','boum','boums','bravo','broum','brrr','bye','c','ça','ca','calmos','car','caramba','ce','ceci','cela','celle','celles','celui','cependant','certain','certaine','certaines','certains','certes','ces','cet','cette','ceux','chacun','chacune','chaque','chez','chic','chiche','chouette','chut','ci','ciao','cinq','cinquante','clac','clic','combien','comme','comment','concernant','contre','contres','couic','crac','cré','crénom','cristi','croie','croient','croies','croira','croirai','croiraient','croirais','croirait','croiras','croire','croirez','croiriez','croirions','croirons','croiront','crois','croit','croyaient','croyais','croyait','croyant','croyez','croyiez','croyions','croyons','cru','crue','crûmes','crurent','crus','crusse','crussent','crusses','crut','crût','d','da','dans','davantage','dc','de','debout','dedans','dehors','déjà','demain','demains','demi','demie','demies','demis','depuis','derrière','des','dès','desdites','desdits','desquelles','desquels','dessous','dessus','deux','devaient','devais','devait','devant','devants','devers','devez','deviez','devions','devoir','devoirs','devons','devra','devrai','devraient','devrais','devrait','devras','devrez','devriez','devrions','devrons','devront','dia','diantre','différents','dig','ding','dira','dirai','diraient','dirais','dirait','diras','dire','dirent','dires','direz','diriez','dirions','dirons','diront','dis','disaient','disais','disait','disant','dise','disent','dises','disiez','disions','disons','dissent','dit','dît','dite','dites','dîtes','dits','divers','diverses','dix','dm','dois','doit','doive','doivent','doives','dommage','donc','dong','dont','douze','dring','du','dû','dudit','due','dues','dûmes','duquel','durant','durent','dus','dusse','dussent','dusses','dussiez','dussions','dut','dût','e','eh','elle','elles','en','encore','enfin','ensuite','entre','envers','environ','environs','es','ès','est','et','étaient','étais','était','etait','étant','été','êtes','étiez','étions','être','eu','eue','eues','euh','eûmes','eurêka','eurent','eus','eusse','eussé','eussent','eusses','eussiez','eussions','eut','eût','eûtes','eux','excepté','extra','extras','f','faire','fais','faisaient','faisais','faisait','faisant','faisiez','faisions','faisons','fait','faite','faites','fallait','falloir','fallu','fallut','fallût','fasse','fassent','fasses','fassiez','fassions','faudra','faudrait','faut','fera','ferai','feraient','ferais','ferait','feras','ferez','feriez','ferions','ferons','feront','fi','fichtre','fîmes','firent','fis','fisse','fissent','fissiez','fissions','fit','fît','fîtes','flac','floc','flop','font','force','fors','fort','forte','fortes','fortissimo','forts','fouchtra','franco','fûmes','furent','fus','fusse','fussent','fusses','fussiez','fussions','fut','fût','fûtes','g','gare','gares','gnagnagna','grâce','gué','gy','ha','haha','hai','halte','hardi','hare','hé','hein','hélas','hello','hem','hep','heu','hi','hic','hip','hisse','ho','holà','hom','hon','hop','hormis','hors','hou','houhou','houlà','houp','hourra','hourras','hue','hugh','huit','hum','hurrah','icelle','icelles','icelui','ici','il','illico','ils','in','inter','inters','itou','j','jadis','jamais','jarnicoton','je','jouxte','jusqu','jusqu_à','jusqu_au','jusque','juste','justes','l','la','là','lala','laquelle','las','le','lendemain','lendemains','lequel','les','lès','lesquelles','lesquels','leur','leurs','lez','loin','longtemps','lors','lorsqu','lorsque','lui','m','ma','macarel','macarelle','madame','maint','mainte','maintenant','maintes','maints','mais','mal','male','males','malgré','mâtin','maux','mazette','mazettes','me','même','meme','mêmes','merci','merdasse','merde','merdre','mes','mesdames','messieurs','meuh','mézig','mézigue','mi','miam','mien','mienne','miennes','miens','mieux','mil','mille','milles','million','millions','mince','ml','mlle','mm','mme','moi','moindre','moindres','moins','mon','monseigneur','monsieur','morbleu','mordicus','mordieu','motus','mouais','moyennant','n','na','ne','néanmoins','neuf','ni','niet','non','nonante','nonobstant','nos','notre','nôtre','nôtres','nous','nul','nulle','nulles','nuls','o','ô','octante','oh','ohé','ok','olé','ollé','on','ont','onze','or','ou','où','ouah','ouais','ouf','ouh','oui','ouiche','ouille','oust','ouste','outre','outres','pa','palsambleu','pan','par','parbleu','parce','pardi','pardieu','pardon','parfois','parmi','partout','pas','pasque','patapouf','patata','patati','patatras','pchitt','pendant','pendante','pendantes','pendants','personne','personnes','peste','peu','peuchère','peuh','peut','peuvent','peux','pff','pfft','pfutt','pianissimo','pianissimos','pis','plein','ploc','plouf','plupart','plus','plusieurs','point','points','pollope','polope','pouah','pouce','pouf','pouh','pouic','pour','pourquoi','pourra','pourrai','pourraient','pourrais','pourrait','pourras','pourrez','pourriez','pourrions','pourrons','pourront','pourtant','pouvaient','pouvais','pouvait','pouvant','pouvez','pouviez','pouvions','pouvoir','pouvoirs','pouvons','près','presque','primo','pristi','prosit','prout','pschitt','psitt','pst','pu','puis','puisqu','puisque','puissamment','puisse','puissent','puisses','puissiez','puissions','pûmes','purent','pusse','pussent','pusses','pussiez','put','pût','pûtes','qu','quand','quant','quarante','quasi','quatorze','quatre','que','quel','quelconque','quelconques','quelle','quelles','quelque','quelquefois','quelques','quels','qui','quiconque','quinze','quoi','quoique','rantanplan','rasibus','rataplan','rebelote','recta','revoici','revoilà','rez','rien','riens','s','sa','sachant','sache','sachent','saches','sachez','sachiez','sachions','sachons','sacrebleu','sacrédié','sacredieu','sais','sait','salut','sans','saperlipopette','sapristi','sauf','saufs','saura','saurai','sauraient','saurais','saurait','sauras','sauront','savaient','savais','savait','savent','savez','saviez','savions','savoir','savoirs','savons','scrogneugneu','se','sécolle','secundo','seize','selon','sept','septante','sera','serai','seraient','serais','serait','seras','serez','seriez','serions','serons','seront','ses','sézigue','si','sic','sien','sienne','siennes','siens','sinon','six','skaal','snif','sniff','soi','soient','sois','soit','soixante','sommes','son','sons','sont','soudain','soudaine','soudaines','soudains','sous','souvent','soyez','soyons','splash','su','subito','suis','suivant','sûmes','sur','sure','surent','sures','surnombre','surs','surtout','surtouts','sus','susse','sussent','sut','sût','t','ta','tacatac','tacatacatac','tagada','taïaut','tant','tap','taratata','tard','tchao','te','té','tel','telle','telles','tels','tertio','tes','tézig','tézigue','tien','tienne','tiennes','tiens','tintin','to','toi','ton','tons','toujours','tous','tout','toute','toutefois','toutes','touts','treize','trente','très','trois','trop','tu','tudieu','turlututu','u','un','une','unes','uns','v','van','vans','ventrebleu','vers','versus','vertubleu','veuille','veuillent','veuilles','veuillez','veulent','veut','veux','via','vingt','vite','vivat','vive','vlan','vlouf','voici','voilà','voire','volontiers','vos','votre','vôtre','vôtres','voudra','voudrai','voudraient','voudrais','voudrait','voudras','voudrez','voudriez','voudrions','voudrons','voudront','voulaient','voulais','voulait','voulant','voulez','vouliez','voulions','vouloir','vouloirs','voulons','voulu','voulue','voulûmes','voulurent','voulus','voulusse','voulussent','voulut','voulût','vous','vroom','vroum','wouah','x','y','yeah','youp','youpi','yu','zou','zut','zzz','zzzz','cest','etre','ouii','ouiiii','hahah','hahaha','hahahah','hahahaha','hahahahaha','hahahahahaha','hahahahaahaha','hahaaa','hahaaahaaaa','hahahaahhaaaaa','ahahaahahaha','ahahah','ahahahah','ahahahahah','ahahahahahahah','ahaha','ahah','aha','http','https','www','p','r','ouai','étée','étées','étés','étante','étants','étantes','ayante','ayantes','ayants']
     if language=="en":
@@ -61,7 +56,7 @@ def tokenize_text(df,col_name,lang):
         nlp.add_pipe('pos', name='pos', after='parser')
     i=0    
     
-    for doc in nlp.pipe(df[col_name].astype('unicode').values, batch_size=10,n_process=1):
+    for doc in nlp.pipe(df[col_name].astype('unicode').values, batch_size=500,n_process=2):
         i=i+1
         if doc.has_annotation("DEP"):          
             lemma.append([n.lemma_.lower().translate(str.maketrans('', '', string.punctuation+'’')) for n in doc if n.pos_ in ["VERB","NOUN","ADJ","PROPN","ADV","SYM"]])
@@ -69,15 +64,12 @@ def tokenize_text(df,col_name,lang):
             lemma.append('')
 
     df['lemma']=[' '.join(map(str, l)) for l in lemma]
-#     df['lemma']=lemma
     return df
 
 @st.cache()
 def pipeline_nlp(df_sample,lang,stop_words,no_topics):
     df_sample=tokenize_text(df_sample,'content',lang)
     
-#     tokenized_data_bigrams,tokenized_data_trigrams=create_bigrams_trigrams(df_sample['lemma'])
-#     df_sample=detokenization(df_sample,tokenized_data_trigrams)
     vectorizer,document_matrix,feature_names=vectorize(df_sample['lemma'],5000,stop_words)    
 
     nmf_model = NMF(n_components=no_topics, random_state=42, alpha=.1, l1_ratio=.5, init='nndsvd',max_iter=1000).fit(document_matrix)
@@ -88,11 +80,9 @@ def pipeline_nlp(df_sample,lang,stop_words,no_topics):
     #preparation données du wordcloud
     dense = document_matrix.todense()
     lst1 = dense.tolist()
-    df_tfidf = pd.DataFrame(lst1, columns=feature_names)
-    
-    
+    df_tfidf = pd.DataFrame(lst1, columns=feature_names).T.sum(axis=1).sort_values(axis=0,ascending=False)[:50]
     #génération du wordcloud
-    Cloud = WordCloud(background_color="white", max_words=50,width=800, height=500).generate_from_frequencies(df_tfidf.T.sum(axis=1))
+    Cloud = WordCloud(background_color="white", max_words=50,width=800, height=500).generate_from_frequencies(df_tfidf)
     
     return df_sample,df_topics,df_tfidf, document_matrix,feature_names,Cloud
 
@@ -178,10 +168,9 @@ def histogram_score(df,x,y,text,marker_color):
 
 @st.cache()
 def barchart_sentiment_relative(df_reviews):
-#     df_gb=df_reviews.groupby(["month"]).agg({"reviewId":"nunique","score":"mean"}).reset_index().sort_values(by="month",ascending=False)
     
-    df_gb=df_reviews.groupby(["month"]).agg({"reviewId":"nunique","score":"mean"}).reset_index()
-    df_sentiment=df_reviews.groupby(["month","sentiment"]).agg({"reviewId":"nunique"})
+    df_gb=df_reviews[['month','reviewId','score']].groupby(["month"]).agg({"reviewId":"nunique","score":"mean"}).reset_index()
+    df_sentiment=df_reviews[['month','reviewId','sentiment']].groupby(["month","sentiment"]).agg({"reviewId":"nunique"})
     df_sentiment['%reviews']=df_sentiment.groupby(level=0).apply(lambda x:100 * x / float(x.sum()))
     df_sentiment=df_sentiment.reset_index()
     df_sentiment=df_sentiment.pivot(index="month", columns="sentiment", values="%reviews").reset_index()
@@ -328,9 +317,8 @@ def sample_reviews(df_reviews,dt_min_date):
     else:
         df_sample=df_reviews[df_reviews['content'].str.len()>0]
         
-    return df_sample
+    return df_sample[['reviewId','content','sentiment','score']]
 
-@st.cache()
 def parsing_reviews(result_reviews,app_id,country):
     
     #parsing des reviews
@@ -339,8 +327,6 @@ def parsing_reviews(result_reviews,app_id,country):
     df_reviews['sentiment']= np.where(df_reviews['score']>3,"positif",np.where(df_reviews['score']<3,"négatif","neutre"))
     df_reviews['url']="https://play.google.com/store/apps/details?id="+str(app_id)+"&gl="+country+"&reviewId="+df_reviews['reviewId']   
     df_reviews['Réponses']=np.where(df_reviews["replyContent"].str.len()>0,1,0)
-    
-    
     
     return df_reviews
 
@@ -360,8 +346,6 @@ def define_no_topics(df):
 
 
 
-
-
 def main():
     st.set_page_config(
         page_title="Google Play Analysis",
@@ -376,18 +360,13 @@ def main():
     app_id=st.sidebar.text_input("Entrez l'ID de l'application à analyser", value='com.nytimes.android', max_chars=None, key=None, type='default') 
     lang=st.sidebar.selectbox("Sélectionnez la langue des reviews à capturer",['fr','en'], index=0) 
     country=st.sidebar.selectbox("Sélectionnez la zone géographique du Google Play Store",['fr','gb','us'], index=0) 
-#     no_topics = st.sidebar.number_input("Combien de topics à détecter", min_value=0, max_value=None,value=20, step=1)
     
     if st.sidebar.button("Valider"):
-#         if lang=='en':
-#             import en_core_web_sm
-#         else:
-#             import fr_core_web_sm
 
         
         try:
             result_app=query_app(app_id,lang,country)
-            df_app=json_normalize(result_app)
+#             df_app=json_normalize(result_app)
 
             if result_app["free"] is True:
                 free="App Gratuite"
@@ -469,13 +448,20 @@ def main():
 
             st.subheader("Réponses du développeur")
             if len(df_reviews[df_reviews["replyContent"].str.len()>0])>0:
-                df_replies=df_reviews[df_reviews["replyContent"].str.len()>0]
-                nb_replies=len(df_replies)
-                nb_replies_12months=len(df_replies[df_replies["at"]>dt_min_date_12months])
+#                 df_replies=df_reviews[df_reviews["replyContent"].str.len()>0]
+                nb_replies=len(df_reviews[df_reviews["replyContent"].str.len()>0])
+#                 nb_replies_12months=len(df_replies[df_replies["at"]>dt_min_date_12months])
+                nb_replies_12months=len(df_reviews[(df_reviews["replyContent"].str.len()>0) & (df_reviews["at"]>dt_min_date_12months)])
+
+
 
                 per_replies=(nb_replies/len(df_reviews))*100
 
-                st.write(str(nb_replies)+ " commentaires ont été posté depuis le "+str(df_replies["at"].min().strftime('%d-%m-%Y'))+" ("+str(nb_replies_12months)+" sur les 12 derniers mois) . Le taux de réponse moyen s'élève à "+str(round(per_replies,1))+"%.", unsafe_allow_html=True)
+
+                st.write(str(nb_replies)+ " commentaires ont été posté depuis le "+str(df_reviews[df_reviews["replyContent"].str.len()>0]["at"].min().strftime('%d-%m-%Y'))+" ("+str(nb_replies_12months)+" sur les 12 derniers mois) . Le taux de réponse moyen s'élève à "+str(round(per_replies,1))+"%.", unsafe_allow_html=True)
+
+
+
                 fig=barchart_dev_replies(df_dev)
                 st.plotly_chart(fig, use_container_width=True, sharing='streamlit')
             else:
@@ -541,7 +527,6 @@ def main():
                     st.write("<h4>Reviews négatives</h4><br/><br/>",unsafe_allow_html=True)
                     if neg_is_ok is True :
                         df_negative_reviews=pd.merge(df_negative_reviews,df_neg_topics, how='left', left_on='NMF Topic', right_on='index')
-
                         df_pie_neg = df_negative_reviews[["topic_title","reviewId"]].groupby(["topic_title"]).agg({"reviewId":"nunique"}).reset_index().sort_values(by='reviewId',ascending=False)
 
                         fig = px.pie(df_pie_neg, values='reviewId', names='topic_title', title='Principaux pain points')
