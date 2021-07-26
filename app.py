@@ -1,10 +1,10 @@
 import streamlit as st
 import json
 import pandas as pd
-from pandas.io.json import json_normalize
+from pandas import json_normalize
 import base64
 from google_play_scraper import app, Sort, reviews_all
-import plotly.express as px
+# import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
@@ -14,13 +14,13 @@ from spacy_lefff import LefffLemmatizer, POSTagger
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import NMF
 import string
-import gensim
-import gensim.corpora as corpora
+# import gensim
+# import gensim.corpora as corpora
 from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
 # from spacy import load
-import line_profiler
+# import line_profiler
 
 
 #####################################################
@@ -414,15 +414,7 @@ def main():
                 st.write("<table style=\"border-collapse: collapse;margin: 25px 0;font-size: 0.9em;font-family: sans-serif;min-width: 400px;width:100%;box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);\"><thead style=\"background-color: #F63366;color: #ffffff;text-align: left;\"><tr><th>KPI</th><th>Depuis la création de l'app</th></tr></thead><tbody><tr><td><b>#reviews</b></td><td>"+str(human_format(result_app['reviews']))+" reviews</td></tr><tr><td><b>#ratings</b></td><td>"+str(rating)+" ratings</td></tr><tr><td><b>Installations</b></td><td>"+str(result_app['installs'])+"</td></tr><tr><td><b>Score moyen</b></td><td>"+str(round(result_app['score'],2))+"</td></tr><tr><td><b>Modèle économique</b></td><td>"+free+"</td><tr><td><b>Intégration e-commerce</b></td><td>"+inApp+"</td></tr><tr><td><b>Inclus de la publicité</b></td><td>"+containsAds+"</td></tbody></table>", unsafe_allow_html=True)
             with col2:
                 try:
-                    df_histogram=process_histogram(result_app)
-                    
-                    
-                    
-                    profiler = line_profiler.LineProfiler()
-                    wrapper = profiler(process_histogram)
-                    wrapper(result_app)
-                    st.write(profiler.print_stats())
-                    
+                    df_histogram=process_histogram(result_app)                   
                     
                     fig=histogram_score(df_histogram,'reviews','Note','%reviews',['#ff6f31','#ff9f02','#ffcf02','#9ace6a','#57bb8a'])
                     st.plotly_chart(fig, use_container_width=False, sharing='streamlit') 
