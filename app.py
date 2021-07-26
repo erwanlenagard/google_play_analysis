@@ -28,7 +28,7 @@ from wordcloud import WordCloud
 #####################################################
 
 
-
+@st.cache()
 def get_stopwords(language):
     #     nltk.download("stopwords")
     stop_words=[]
@@ -72,7 +72,7 @@ def tokenize_text(df,col_name,lang):
 #     df['lemma']=lemma
     return df
 
-
+@st.cache()
 def pipeline_nlp(df_sample,lang,stop_words,no_topics):
     df_sample=tokenize_text(df_sample,'content',lang)
     
@@ -96,7 +96,7 @@ def pipeline_nlp(df_sample,lang,stop_words,no_topics):
     
     return df_sample,df_topics,df_tfidf, document_matrix,feature_names,Cloud
 
-
+@st.cache()
 def vectorize(documents,no_terms,stop_words):
     # NMF uses the tf-idf count vectorizer
     # Initialise the count vectorizer with the English stop words
@@ -107,7 +107,7 @@ def vectorize(documents,no_terms,stop_words):
     feature_names = vectorizer.get_feature_names()
     return vectorizer,document_matrix,feature_names
 
-
+@st.cache()
 def get_topics(df,nmf_model,document_matrix):
     #Use NMF model to assign topic to papers in corpus
     nmf_topic_values = nmf_model.transform(document_matrix)
@@ -115,7 +115,7 @@ def get_topics(df,nmf_model,document_matrix):
     df['NMF Proba']=nmf_topic_values.max(axis=1)
     return df,nmf_topic_values
 
-
+@st.cache()
 def display_topics(model, feature_names, seuil, no_top_words):
  
     l_topics=[]
@@ -138,7 +138,7 @@ def display_topics(model, feature_names, seuil, no_top_words):
 # DATA VIZ
 ######################################
 
-
+@st.cache()
 def human_format(num):
     magnitude = 0
     while abs(num) >= 1000:
@@ -148,7 +148,7 @@ def human_format(num):
     return '%.2f%s' % (num, ['', 'K', 'M', 'G', 'T', 'P'][magnitude])
 
 
-
+@st.cache()
 def process_histogram(result_app):
     df_histogram=pd.DataFrame(result_app['histogram'],columns=['reviews'])
     df_histogram['Note']= df_histogram.index +1 
@@ -157,7 +157,7 @@ def process_histogram(result_app):
     
     return df_histogram
 
-
+@st.cache()
 def histogram_score(df,x,y,text,marker_color):
     x_data=list(df[x])
     y_data=list(df[y])
@@ -176,7 +176,7 @@ def histogram_score(df,x,y,text,marker_color):
     return fig
 
 
-
+@st.cache()
 def barchart_sentiment_relative(df_reviews):
 #     df_gb=df_reviews.groupby(["month"]).agg({"reviewId":"nunique","score":"mean"}).reset_index().sort_values(by="month",ascending=False)
     
@@ -256,7 +256,7 @@ def barchart_sentiment_relative(df_reviews):
 
     return fig,df_sentiment
 
-
+@st.cache()
 def barchart_dev_replies(df):
     
 
@@ -308,15 +308,15 @@ def barchart_dev_replies(df):
     return fig
 
 
-
+@st.cache()
 def query_app(app_id,lang,country):
     return app(app_id,lang=lang, country=country)
 
-
+@st.cache()
 def query_reviews(app_id,lang,country):
     return reviews_all(app_id,sleep_milliseconds=0, lang=lang, country=country, sort=Sort.NEWEST, filter_score_with=None)
 
-
+@st.cache()
 def sample_reviews(df_reviews,dt_min_date):
     if len(df_reviews)>1000:
         df_reviews=df_reviews[df_reviews['content'].str.len()>0]
@@ -330,7 +330,7 @@ def sample_reviews(df_reviews,dt_min_date):
         
     return df_sample
 
-
+@st.cache()
 def parsing_reviews(result_reviews,app_id,country):
     
     #parsing des reviews
@@ -344,7 +344,7 @@ def parsing_reviews(result_reviews,app_id,country):
     
     return df_reviews
 
-
+@st.cache()
 def define_no_topics(df):
     no_topics=20
     size=len(df)
