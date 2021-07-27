@@ -120,7 +120,19 @@ def display_topics(model, feature_names, seuil, no_top_words):
     
     return df_topics
 
-
+@st.cache()
+def define_no_topics(df):
+    no_topics=20
+    size=len(df)
+    
+    if size<750:
+        no_topics=15
+        if size<500:
+            no_topics=10
+            if size<250:
+                no_topics=8       
+    
+    return no_topics
 
 ######################################
 # DATA VIZ
@@ -128,16 +140,11 @@ def display_topics(model, feature_names, seuil, no_top_words):
 
 @st.cache()
 def get_table_download_link(df,channel):
-    """Generates a link allowing the data in a given panda dataframe to be downloaded
-    in:  dataframe
-    out: href string
-    """
     names=df.columns
     csv = df.to_csv(header=names, sep=';',encoding='utf-8',index=False, decimal=",")
-    b64 = base64.b64encode(csv.encode()).decode()  # some strings <-> bytes conversions necessary here
-    href = f'<div style=\"background-color: #e1e1e1; padding: 10px 10px 10px 10px;\"><center><a href="data:file/csv;base64,{b64}" download="video_{channel}.csv"><button style=\"background-color: #14A1A1;border: none;color: white;padding: 10px;text-align: center;text-decoration: none;display: inline-block;font-size: 12px;width: 300px;margin: 4px 2px;border-radius: 8px;\"><b>Télécharger les résultats</b></button></a></center></div>'
+    b64 = base64.b64encode(csv.encode()).decode() 
+    href = f'<div style=\"background-color: #e1e1e1; padding: 10px 10px 10px 10px;\"><center><a href="data:file/csv;base64,{b64}" download="video_{channel}.csv"><button style=\"background-color: #14A1A1;border: none;color: white;padding: 10px;text-align: center;text-decoration: none;display: inline-block;font-size: 12px;width: 300px;margin: 4px 2px;border-radius: 8px;\"><b>Télécharger les données brutes</b></button></a></center></div>'
     return href
-
 
 
 @st.cache()
@@ -285,8 +292,6 @@ def barchart_dev_replies(df):
     fig.update_layout(
             yaxis=dict(
             title_text="Reviews",
-#             ticktext=["0%", "20%", "40%", "60%","80%","100%"],
-#             tickvals=[0, 20, 40, 60, 80, 100],
             tickmode="array",
             titlefont=dict(size=15),
         ),
@@ -310,12 +315,65 @@ def barchart_dev_replies(df):
 
 
 @st.cache()
+def barchart_count_reviews(df):
+    
+
+    fig = make_subplots(specs=[[{"secondary_y": False}]])
+
+    fig.add_trace(go.Bar(
+        y=df["reviewId"],
+        x=df["month"],
+        name="Reviews",
+        marker=dict(
+            color='#434444',
+            line=dict(color='rgba(0,128,0, 0.5)', width=0.05)
+        )
+    ))
+
+    fig.update_layout(
+            yaxis=dict(
+            title_text="Reviews",
+            tickmode="array",
+            titlefont=dict(size=15),
+        ),
+        autosize=True,
+        width=1000,
+        height=400,
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        title={
+            'text': "Nombre de reviews collectées",
+            'y':0.96,
+            'x':0.5,
+            'xanchor': 'center',
+            'yanchor': 'top'},
+        barmode='stack') 
+   
+
+    return fig
+
+
+##################
+# CAPTURE DE DONNEES
+
+@st.cache()
 def query_app(app_id,lang,country):
     return app(app_id,lang=lang, country=country)
 
 @st.cache()
 def query_reviews(app_id,lang,country):
     return reviews_all(app_id,sleep_milliseconds=0, lang=lang, country=country, sort=Sort.NEWEST, filter_score_with=None)
+
+def parsing_reviews(result_reviews,app_id,country):
+    
+    #parsing des reviews
+    df_reviews=json_normalize(result_reviews)
+
+    df_reviews['sentiment']= np.where(df_reviews['score']>3,"positif",np.where(df_reviews['score']<3,"négatif","neutre"))
+    df_reviews['url']="https://play.google.com/store/apps/details?id="+str(app_id)+"&gl="+country+"&reviewId="+df_reviews['reviewId']   
+    df_reviews['Réponses']=np.where(df_reviews["replyContent"].str.len()>0,1,0)
+    
+    return df_reviews
 
 def sample_reviews(df_reviews,dt_min_date):
     if len(df_reviews)>1000:
@@ -330,30 +388,8 @@ def sample_reviews(df_reviews,dt_min_date):
         
     return df_sample[['reviewId','content','sentiment','score']]
 
-def parsing_reviews(result_reviews,app_id,country):
-    
-    #parsing des reviews
-    df_reviews=json_normalize(result_reviews)
 
-    df_reviews['sentiment']= np.where(df_reviews['score']>3,"positif",np.where(df_reviews['score']<3,"négatif","neutre"))
-    df_reviews['url']="https://play.google.com/store/apps/details?id="+str(app_id)+"&gl="+country+"&reviewId="+df_reviews['reviewId']   
-    df_reviews['Réponses']=np.where(df_reviews["replyContent"].str.len()>0,1,0)
-    
-    return df_reviews
 
-@st.cache()
-def define_no_topics(df):
-    no_topics=20
-    size=len(df)
-    
-    if size<750:
-        no_topics=15
-        if size<500:
-            no_topics=10
-            if size<250:
-                no_topics=8       
-    
-    return no_topics
 
 
 
@@ -365,30 +401,18 @@ def main():
         initial_sidebar_state="expanded",
     )
     
-    
-
-    emp=st.empty()
-    with emp.beta_container():
-        st.header("Google Play Analysis")
-        st.write("<p>Cet outil vous permet d'analyser les commentaires associés à une application disponible sur Google Play Store. Il vous suffit de préciser l'identifiant de l'application et sa zone géographique. L'identifiant d'une application Android est repérable dans l'URL redirigeant vers Google Play Store. Ex : https:// play.google.com/store/apps/details?id=<b>com.lemonde.androidapp</b>&gl=FR</p>",unsafe_allow_html=True)
-        st.image("https://documentation.meraki.com/@api/deki/files/1037/01596e12-cca2-4280-98ed-641c31d51a0d?revision=1")
-        st.info("L'outil récupère un grand nombre de reviews, l'analyse peut donc prendre quelques minutes avant d'afficher les résultats.")
-    
-    
-    
-    
     ###################################
     # PARAMETRES DE LA SIDEBAR
     st.sidebar.title('Paramètres')
-    
-    
+    st.sidebar.write("<p>Cet outil vous permet d'analyser les commentaires associés à une application disponible sur Google Play Store. Il vous suffit de préciser l'identifiant de l'application et sa zone géographique. L'identifiant d'une application Android est repérable dans l'URL redirigeant vers Google Play Store. Ex : https:// play.google.com/store/apps/details?id=<b>com.lemonde.androidapp</b>&gl=FR</p>",unsafe_allow_html=True)
     app_id=st.sidebar.text_input("Entrez l'ID de l'application à analyser", value='com.lemonde.androidapp', max_chars=None, key=None, type='default') 
     lang=st.sidebar.selectbox("Sélectionnez la langue des reviews à capturer",['fr','en'], index=0) 
-    country=st.sidebar.selectbox("Sélectionnez la zone géographique du Google Play Store",['fr','gb','us'], index=0)    
+    country=st.sidebar.selectbox("Sélectionnez la zone géographique du Google Play Store",['fr','gb','us'], index=0)
+
     
 
     if st.sidebar.button("Valider"):
-        emp.empty()
+        
         
         try:
             result_app=query_app(app_id,lang,country)
@@ -457,50 +481,39 @@ def main():
                     df_dev['Total reviews']=df_reviews.groupby("month").agg({'reviewId':'nunique'}).reset_index()['reviewId']
                     df_dev['Taux de réponse']=df_dev['Réponses']/df_dev['Total reviews']    
 
-
-                    st.subheader("Commentaires sur Google Play Store")
-                    fig,df_sentiment=barchart_sentiment_relative(df_reviews) 
-
-                    st.write(str(len(df_reviews))+ " commentaires ont été posté depuis le "+str(df_reviews["at"].min().strftime('%d-%m-%Y'))+" ("+str(len(df_reviews[df_reviews["at"]>dt_min_date_12months]))+" sur les 12 derniers mois) . La notation moyenne la plus basse était de "+str(round(df_sentiment['score'].min(),2))+" le "+ str(df_sentiment[df_sentiment['score'] == min(df_sentiment['score'])]['month'].values[0])+" . La notation la plus élevée était de "+str(round(df_sentiment['score'].max(),2))+ " le "+ str(df_sentiment[df_sentiment['score'] == max(df_sentiment['score'])]['month'].values[0]), unsafe_allow_html=True)
+                    #Affichage des reviews collectées
+                    st.subheader("Commentaires collectés")
+                    fig=barchart_count_reviews(df_reviews.groupby("month").agg({'reviewId':'nunique'}).reset_index())
                     st.plotly_chart(fig, use_container_width=True, sharing='streamlit')
+
+                    #Analyse des notes déposées
+                    st.subheader("Evolution de la perception")
+                    fig2,df_sentiment=barchart_sentiment_relative(df_reviews) 
+                    st.write(str(len(df_reviews))+ " commentaires ont été posté depuis le "+str(df_reviews["at"].min().strftime('%d-%m-%Y'))+" ("+str(len(df_reviews[df_reviews["at"]>dt_min_date_12months]))+" sur les 12 derniers mois) . La notation moyenne la plus basse était de "+str(round(df_sentiment['score'].min(),2))+" le "+ str(df_sentiment[df_sentiment['score'] == min(df_sentiment['score'])]['month'].values[0])+" . La notation la plus élevée était de "+str(round(df_sentiment['score'].max(),2))+ " le "+ str(df_sentiment[df_sentiment['score'] == max(df_sentiment['score'])]['month'].values[0]), unsafe_allow_html=True) 
+
+                    st.plotly_chart(fig2, use_container_width=True, sharing='streamlit')
                 except:
                     pass
                     st.info("Impossible d'analyser les reviews")
 
-
-
-
                 # Analyse des réponses du developpeur    
-
                 st.subheader("Réponses du développeur")
                 if len(df_reviews[df_reviews["replyContent"].str.len()>0])>0:
-    #                 df_replies=df_reviews[df_reviews["replyContent"].str.len()>0]
                     nb_replies=len(df_reviews[df_reviews["replyContent"].str.len()>0])
-    #                 nb_replies_12months=len(df_replies[df_replies["at"]>dt_min_date_12months])
                     nb_replies_12months=len(df_reviews[(df_reviews["replyContent"].str.len()>0) & (df_reviews["at"]>dt_min_date_12months)])
-
-
-
                     per_replies=(nb_replies/len(df_reviews))*100
-
-
                     st.write(str(nb_replies)+ " commentaires ont été posté depuis le "+str(df_reviews[df_reviews["replyContent"].str.len()>0]["at"].min().strftime('%d-%m-%Y'))+" ("+str(nb_replies_12months)+" sur les 12 derniers mois) . Le taux de réponse moyen s'élève à "+str(round(per_replies,1))+"%.", unsafe_allow_html=True)
-
-
-
                     fig=barchart_dev_replies(df_dev)
                     st.plotly_chart(fig, use_container_width=True, sharing='streamlit')
                 else:
                     st.info("Le développeur n'a répondu a aucun commentaire")
 
                 # on splitte nos reviews selon le sentiment. On retient un max de 1000 reviews sur les 3 derniers mois   
-
                 df_negative_reviews=sample_reviews(df_reviews[df_reviews['score']<4],dt_min_date)
                 df_positive_reviews=sample_reviews(df_reviews[df_reviews['score']>3],dt_min_date)
                 stop_words=get_stopwords(lang)
-
-
-
+                
+                # Pipeline NLP sur les reviews négatives
                 if len(df_negative_reviews)>100:  
                     with st.spinner("Analyse de "+str(len(df_negative_reviews))+" reviews récentes en cours - un peu de patience ! :)"):
                         no_topics=define_no_topics(df_negative_reviews)
@@ -511,6 +524,7 @@ def main():
                 else:
                     neg_is_ok=False
 
+                # Pipeline NLP sur les reviews positives
                 if len(df_positive_reviews)>100:
                     with st.spinner("Analyse de "+str(len(df_positive_reviews))+" reviews récentes en cours - un peu de patience ! :)"):
                         no_topics=define_no_topics(df_positive_reviews)
@@ -519,11 +533,10 @@ def main():
                 else:
                     pos_is_ok=False
 
-
-
+                # Affichages des résultats NLP
                 if pos_is_ok is True or neg_is_ok is True:
                     st.subheader("Termes spécifiques")
-                    st.write("<p>Les 50 termes les plus spécifiques aux reviews récentes</p><br/>",unsafe_allow_html=True)             
+                    st.write("<p>Les 50 termes les plus spécifiques aux reviews récentes (TFIDF)</p><br/>",unsafe_allow_html=True)             
                     col1, col2 = st.beta_columns(2)
                     with col1:
 
@@ -545,7 +558,7 @@ def main():
                         else:
                             st.info("Il n'y a pas suffisamment de reviews positives à analyser")
 
-
+                    # Affichage des résultats du topic modeling
                     st.subheader("Sujets principaux")
                     st.write("Les reviews récentes sont classées en 10 sujets principaux.")
 
@@ -579,7 +592,7 @@ def main():
                     if pos_is_ok is True :
                         st.subheader("Verbatims positifs")
                         st.write("Consultez les reviews les plus pertinentes par sujet") 
-                        # POUR CHAQUE TOPIC, ON AFFICHE LES ARTICLES CLASSES            
+                        # POUR CHAQUE TOPIC, ON AFFICHE LES REVIEWS CLASSEES            
                         for n in sorted(df_positive_reviews['NMF Topic'].unique()):
                             d=df_positive_reviews[df_positive_reviews['NMF Topic']==n].sort_values(by='NMF Proba',ascending=False)
 
@@ -590,7 +603,7 @@ def main():
                     if neg_is_ok is True :
                         st.subheader("Verbatims négatifs")
                         st.write("Consultez les reviews les plus pertinentes par sujet") 
-                        # POUR CHAQUE TOPIC, ON AFFICHE LES ARTICLES CLASSES            
+                        # POUR CHAQUE TOPIC, ON AFFICHE LES REVIEWS CLASSES            
                         for n in sorted(df_negative_reviews['NMF Topic'].unique()):
                             d=df_negative_reviews[df_negative_reviews['NMF Topic']==n].sort_values(by='NMF Proba',ascending=False)
 
@@ -612,6 +625,8 @@ def main():
         except:
             pass
             st.error("Impossible de récupérer les reviews pour cette application")
-    
+
+            
+    st.sidebar.write("<br/><br/><p style=\"font-color:#434444;\"><center>Outil conçu par <a href=\"http://www.erwanlenagard.com\" target=\"_blank\">Erwan Le Nagard</a></center></p>", unsafe_allow_html=True)
 if __name__ == "__main__":
     main()    
