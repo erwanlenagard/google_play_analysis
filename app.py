@@ -627,6 +627,6 @@ def main():
             st.error("Impossible de récupérer les reviews pour cette application")
 
             
-    st.sidebar.write("<br/><br/><p style=\"font-color:#434444;\"><center>Outil conçu par <a href=\"http://www.erwanlenagard.com\" target=\"_blank\">Erwan Le Nagard</a></center></p>", unsafe_allow_html=True)
+    st.sidebar.write("<br/><br/><p><center><a href=\"http://www.erwanlenagard.com\" target=\"_blank\" style=\"color:#434444;\">@Erwan Le Nagard</a></center></p>", unsafe_allow_html=True)
 if __name__ == "__main__":
     main()    
