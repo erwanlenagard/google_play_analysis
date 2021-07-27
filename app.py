@@ -1,71 +1,151 @@
-####################################
-#                                  #
-# FONCTIONS NECESSAIRES AU PROJET  #
-#                                  #
-####################################
 import streamlit as st
 import json
 import pandas as pd
-from twitchAPI.twitch import Twitch
-from twitchAPI.types import TimePeriod,SortMethod,VideoType
-from datetime import datetime
-import plotly.express as px
-import re
+from pandas import json_normalize
 import base64
+from google_play_scraper import app, Sort, reviews_all
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import numpy as np
+import spacy
+from spacy.language import Language
+from spacy_lefff import LefffLemmatizer, POSTagger
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.decomposition import NMF
+import string
+from datetime import datetime, timedelta
+import matplotlib.pyplot as plt
+from wordcloud import WordCloud
+
+
+
+#####################################################
+# TOPIC MODELING
+#####################################################
+
 
 @st.cache()
-def create_instance(key,secret):
-    twitch = Twitch(key, secret)
-    twitch.authenticate_app([])
-    return twitch
+def get_stopwords(language):
+    stop_words=[]
+    if language=="fr":
+        stop_words=['a','à','acré','adieu','afin','ah','ai','aie','aïe','aient','aies','ailleurs','ains','ainsi','ait','alentour','alentours','alias','alléluia','allo','allô','alors','amen','an','ans','anti','après','arrière','as','ase','assez','atchoum','au','aube','aucun','aucune','aucunement','aucunes','aucuns','audit','auparavant','auprès','auquel','aura','aurai','auraient','aurais','aurait','auras','aurez','auriez','aurions','aurons','auront','aussi','autant','autour','autours','autre','autrefois','autres','autrui','aux','auxdits','auxquelles','auxquels','avaient','avais','avait','avant','avants','avec','avez','aviez','avions','avoir','avons','ayant','ayez','ayons','b','badabam','badaboum','bah','balpeau','banco','bang','basta','baste','bé','beaucoup','bcp','ben','berk','bernique','beu','beuark','beurk','bien','biens','bigre','bim','bing','bis','bof','bon','bonne','bonnes','bons','boudiou','boudu','bouf','bougre','boum','boums','bravo','broum','brrr','bye','c','ça','ca','calmos','car','caramba','ce','ceci','cela','celle','celles','celui','cependant','certain','certaine','certaines','certains','certes','ces','cet','cette','ceux','chacun','chacune','chaque','chez','chic','chiche','chouette','chut','ci','ciao','cinq','cinquante','clac','clic','combien','comme','comment','concernant','contre','contres','couic','crac','cré','crénom','cristi','croie','croient','croies','croira','croirai','croiraient','croirais','croirait','croiras','croire','croirez','croiriez','croirions','croirons','croiront','crois','croit','croyaient','croyais','croyait','croyant','croyez','croyiez','croyions','croyons','cru','crue','crûmes','crurent','crus','crusse','crussent','crusses','crut','crût','d','da','dans','davantage','dc','de','debout','dedans','dehors','déjà','demain','demains','demi','demie','demies','demis','depuis','derrière','des','dès','desdites','desdits','desquelles','desquels','dessous','dessus','deux','devaient','devais','devait','devant','devants','devers','devez','deviez','devions','devoir','devoirs','devons','devra','devrai','devraient','devrais','devrait','devras','devrez','devriez','devrions','devrons','devront','dia','diantre','différents','dig','ding','dira','dirai','diraient','dirais','dirait','diras','dire','dirent','dires','direz','diriez','dirions','dirons','diront','dis','disaient','disais','disait','disant','dise','disent','dises','disiez','disions','disons','dissent','dit','dît','dite','dites','dîtes','dits','divers','diverses','dix','dm','dois','doit','doive','doivent','doives','dommage','donc','dong','dont','douze','dring','du','dû','dudit','due','dues','dûmes','duquel','durant','durent','dus','dusse','dussent','dusses','dussiez','dussions','dut','dût','e','eh','elle','elles','en','encore','enfin','ensuite','entre','envers','environ','environs','es','ès','est','et','étaient','étais','était','etait','étant','été','êtes','étiez','étions','être','eu','eue','eues','euh','eûmes','eurêka','eurent','eus','eusse','eussé','eussent','eusses','eussiez','eussions','eut','eût','eûtes','eux','excepté','extra','extras','f','faire','fais','faisaient','faisais','faisait','faisant','faisiez','faisions','faisons','fait','faite','faites','fallait','falloir','fallu','fallut','fallût','fasse','fassent','fasses','fassiez','fassions','faudra','faudrait','faut','fera','ferai','feraient','ferais','ferait','feras','ferez','feriez','ferions','ferons','feront','fi','fichtre','fîmes','firent','fis','fisse','fissent','fissiez','fissions','fit','fît','fîtes','flac','floc','flop','font','force','fors','fort','forte','fortes','fortissimo','forts','fouchtra','franco','fûmes','furent','fus','fusse','fussent','fusses','fussiez','fussions','fut','fût','fûtes','g','gare','gares','gnagnagna','grâce','gué','gy','ha','haha','hai','halte','hardi','hare','hé','hein','hélas','hello','hem','hep','heu','hi','hic','hip','hisse','ho','holà','hom','hon','hop','hormis','hors','hou','houhou','houlà','houp','hourra','hourras','hue','hugh','huit','hum','hurrah','icelle','icelles','icelui','ici','il','illico','ils','in','inter','inters','itou','j','jadis','jamais','jarnicoton','je','jouxte','jusqu','jusqu_à','jusqu_au','jusque','juste','justes','l','la','là','lala','laquelle','las','le','lendemain','lendemains','lequel','les','lès','lesquelles','lesquels','leur','leurs','lez','loin','longtemps','lors','lorsqu','lorsque','lui','m','ma','macarel','macarelle','madame','maint','mainte','maintenant','maintes','maints','mais','mal','male','males','malgré','mâtin','maux','mazette','mazettes','me','même','meme','mêmes','merci','merdasse','merde','merdre','mes','mesdames','messieurs','meuh','mézig','mézigue','mi','miam','mien','mienne','miennes','miens','mieux','mil','mille','milles','million','millions','mince','ml','mlle','mm','mme','moi','moindre','moindres','moins','mon','monseigneur','monsieur','morbleu','mordicus','mordieu','motus','mouais','moyennant','n','na','ne','néanmoins','neuf','ni','niet','non','nonante','nonobstant','nos','notre','nôtre','nôtres','nous','nul','nulle','nulles','nuls','o','ô','octante','oh','ohé','ok','olé','ollé','on','ont','onze','or','ou','où','ouah','ouais','ouf','ouh','oui','ouiche','ouille','oust','ouste','outre','outres','pa','palsambleu','pan','par','parbleu','parce','pardi','pardieu','pardon','parfois','parmi','partout','pas','pasque','patapouf','patata','patati','patatras','pchitt','pendant','pendante','pendantes','pendants','personne','personnes','peste','peu','peuchère','peuh','peut','peuvent','peux','pff','pfft','pfutt','pianissimo','pianissimos','pis','plein','ploc','plouf','plupart','plus','plusieurs','point','points','pollope','polope','pouah','pouce','pouf','pouh','pouic','pour','pourquoi','pourra','pourrai','pourraient','pourrais','pourrait','pourras','pourrez','pourriez','pourrions','pourrons','pourront','pourtant','pouvaient','pouvais','pouvait','pouvant','pouvez','pouviez','pouvions','pouvoir','pouvoirs','pouvons','près','presque','primo','pristi','prosit','prout','pschitt','psitt','pst','pu','puis','puisqu','puisque','puissamment','puisse','puissent','puisses','puissiez','puissions','pûmes','purent','pusse','pussent','pusses','pussiez','put','pût','pûtes','qu','quand','quant','quarante','quasi','quatorze','quatre','que','quel','quelconque','quelconques','quelle','quelles','quelque','quelquefois','quelques','quels','qui','quiconque','quinze','quoi','quoique','rantanplan','rasibus','rataplan','rebelote','recta','revoici','revoilà','rez','rien','riens','s','sa','sachant','sache','sachent','saches','sachez','sachiez','sachions','sachons','sacrebleu','sacrédié','sacredieu','sais','sait','salut','sans','saperlipopette','sapristi','sauf','saufs','saura','saurai','sauraient','saurais','saurait','sauras','sauront','savaient','savais','savait','savent','savez','saviez','savions','savoir','savoirs','savons','scrogneugneu','se','sécolle','secundo','seize','selon','sept','septante','sera','serai','seraient','serais','serait','seras','serez','seriez','serions','serons','seront','ses','sézigue','si','sic','sien','sienne','siennes','siens','sinon','six','skaal','snif','sniff','soi','soient','sois','soit','soixante','sommes','son','sons','sont','soudain','soudaine','soudaines','soudains','sous','souvent','soyez','soyons','splash','su','subito','suis','suivant','sûmes','sur','sure','surent','sures','surnombre','surs','surtout','surtouts','sus','susse','sussent','sut','sût','t','ta','tacatac','tacatacatac','tagada','taïaut','tant','tap','taratata','tard','tchao','te','té','tel','telle','telles','tels','tertio','tes','tézig','tézigue','tien','tienne','tiennes','tiens','tintin','to','toi','ton','tons','toujours','tous','tout','toute','toutefois','toutes','touts','treize','trente','très','trois','trop','tu','tudieu','turlututu','u','un','une','unes','uns','v','van','vans','ventrebleu','vers','versus','vertubleu','veuille','veuillent','veuilles','veuillez','veulent','veut','veux','via','vingt','vite','vivat','vive','vlan','vlouf','voici','voilà','voire','volontiers','vos','votre','vôtre','vôtres','voudra','voudrai','voudraient','voudrais','voudrait','voudras','voudrez','voudriez','voudrions','voudrons','voudront','voulaient','voulais','voulait','voulant','voulez','vouliez','voulions','vouloir','vouloirs','voulons','voulu','voulue','voulûmes','voulurent','voulus','voulusse','voulussent','voulut','voulût','vous','vroom','vroum','wouah','x','y','yeah','youp','youpi','yu','zou','zut','zzz','zzzz','cest','etre','ouii','ouiiii','hahah','hahaha','hahahah','hahahaha','hahahahaha','hahahahahaha','hahahahaahaha','hahaaa','hahaaahaaaa','hahahaahhaaaaa','ahahaahahaha','ahahah','ahahahah','ahahahahah','ahahahahahahah','ahaha','ahah','aha','http','https','www','p','r','ouai','étée','étées','étés','étante','étants','étantes','ayante','ayantes','ayants']
+    if language=="en":
+        stop_words=["able","about","above","according","accordingly","across","actually","after","afterwards","again","against","all","allow","allows","almost","alone","along","already","also","although","always","am","among","amongst","an","and","another","any","anybody","anyhow","anyone","anything","anyway","anyways","anywhere","apart","appear","appreciate","appropriate","are","around","as","aside","ask","asking","associated","at","available","away","awfully","b","be","became","because","become","becomes","becoming","been","before","beforehand","behind","being","believe","below","beside","besides","best","better","between","beyond","both","brief","but","by","c","came","can","cannot","cant","cause","causes","certain","certainly","changes","clearly","co","com","come","comes","concerning","consequently","consider","considering","contain","containing","contains","corresponding","could","course","currently","d","definitely","described","despite","did","different","do","does","doing","done","down","downwards","during","e","each","edu","eg","eight","either","else","elsewhere","enough","entirely","especially","et","etc","even","ever","every","everybody","everyone","everything","everywhere","ex","exactly","example","except","f","far","few","fifth","first","five","followed","following","follows","for","former","formerly","forth","four","from","further","furthermore","g","get","gets","getting","given","gives","go","goes","going","gone","got","gotten","greetings","h","had","happens","hardly","has","have","having","he","hello","help","hence","her","here","hereafter","hereby","herein","hereupon","hers","herself","hi","him","himself","his","hither","hopefully","how","howbeit","however","i","ie","if","ignored","immediate","in","inasmuch","inc","indeed","indicate","indicated","indicates","inner","insofar","instead","into","inward","is","it","its","itself","j","just","k","keep","keeps","kept","know","known","knows","l","last","lately","later","latter","latterly","least","less","lest","let","like","liked","likely","little","look","looking","looks","ltd","m","made","mainly","make","makes","making","many","may","maybe","me","mean","meanwhile","merely","might","more","moreover","most","mostly","much","must","my","myself","n","name","namely","nd","near","nearly","necessary","need","needs","neither","never","nevertheless","new","next","nine","no","nobody","non","none","noone","nor","normally","not","nothing","novel","now","nowhere","o","obviously","of","off","often","oh","ok","okay","old","on","once","one","ones","only","onto","or","other","others","otherwise","ought","our","ours","ourselves","out","outside","over","overall","own","p","particular","particularly","per","perhaps","placed","please","plus","possible","presumably","probably","provides","q","que","quite","qv","r","rather","rd","re","really","reasonably","regarding","regardless","regards","relatively","respectively","right","s","said","same","saw","say","saying","says","second","secondly","see","seeing","seem","seemed","seeming","seems","seen","self","selves","sensible","sent","serious","seriously","seven","several","shall","she","should","since","six","so","some","somebody","somehow","someone","something","sometime","sometimes","somewhat","somewhere","soon","sorry","specified","specify","specifying","still","sub","such","sup","sure","t","take","taken","takes","taking","tell","tends","th","than","that","thats","the","their","theirs","them","themselves","then","thence","there","thereafter","thereby","therefore","therein","theres","thereupon","these","they","think","third","this","thorough","thoroughly","those","though","three","through","throughout","thru","thus","to","together","too","took","toward","towards","tried","tries","truly","try","trying","twice","two","u","un","under","unfortunately","unless","unlikely","until","unto","up","upon","us","use","used","useful","uses","using","usually","uucp","v","value","various","very","via","viz","vs","w","want","wants","was","way","we","welcome","well","went","were","what","whatever","when","whence","whenever","where","whereafter","whereas","whereby","wherein","whereupon","wherever","whether","which","while","whither","who","whoever","whole","whom","whose","why","will","willing","wish","with","within","without","wonder","would","x","y","yes","yet","you","your","yours","yourself","yourselves","z","zero","a","you're","you've","you'll","you'd","she's","it's","that'll","don","don't","should've","ll","ve","ain","aren","aren't","couldn","couldn't","didn","didn't","doesn","doesn't","hadn","hadn't","hasn","hasn't","haven","haven't","isn","isn't","ma","mightn","mightn't","mustn","mustn't","needn","needn't","shan","shan't","shouldn","shouldn't","wasn","wasn't","weren","weren't","won","won't","wouldn","wouldn't"]
+    return stop_words
 
-@st.cache()
-def collect_video(twitch,user,periode,classement,video_type):
 
-    #On requête
-    video_data=dict()
-    video_data["data"]=[]
-    cursor=None
-    videos_json=twitch.get_videos(user_id=user,first=100,period=periode,sort=classement,video_type=video_type)
 
-    if len(videos_json['data'])>0:
-        video_data["data"]=videos_json['data']
-    if 'pagination' in videos_json:
-        if 'cursor' in videos_json['pagination']:
-            cursor=videos_json['pagination']['cursor']
+@Language.factory('french_lemmatizer')
+def create_french_lemmatizer(nlp, name):
+    return LefffLemmatizer()
+
+@Language.factory('pos')
+def create_pos_tagger(nlp, name):
+    return POSTagger()
+
+def tokenize_text(df,col_name,lang):
+    lemma = []
+    if lang=='fr':
+        nlp = spacy.load('fr_core_news_sm',disable=['senter', 'ner', 'attribute_ruler'])
+        nlp.add_pipe('pos', name='pos', after='parser')
+        nlp.add_pipe('french_lemmatizer', name='lefff', after='pos')
+       
+    if lang=='en':
+        nlp = spacy.load('en_core_web_sm',disable=['senter', 'ner', 'attribute_ruler'])
+        nlp.add_pipe('pos', name='pos', after='parser')
+    i=0    
+    
+    for doc in nlp.pipe(df[col_name].astype('unicode').values, batch_size=1000,n_process=2):
+        i=i+1
+        if doc.has_annotation("DEP"):          
+            lemma.append([n.lemma_.lower().translate(str.maketrans('', '', string.punctuation+'’')) for n in doc if n.pos_ in ["VERB","NOUN","ADJ","PROPN","ADV","SYM"]])
         else:
-            cursor=None
+            lemma.append('')
 
-    while cursor is not None:
-        videos_json=twitch.get_videos(user_id=user, after=cursor,first=100,period=periode,sort=classement,video_type=video_type)
-        if len(videos_json['data'])>0:
-            video_data["data"]=video_data["data"]+videos_json['data']
-
-        if 'pagination' in videos_json:
-            if 'cursor' in videos_json['pagination']:
-                cursor=videos_json['pagination']['cursor']
-            else:
-                cursor=None
-    return video_data
-
+    df['lemma']=[' '.join(map(str, l)) for l in lemma]
+    return df
 
 @st.cache()
-def parsing_user(users):
-    all_users=[]
-    for user in users["data"]:
-        user_id=user['id']
-        login=user['login']
-        type_user=user['type']
-        description=user['description']
-        broadcaster_type=user['broadcaster_type']
-        view_count=user['view_count']
-        created_at=user['created_at']
-        current_user=(user_id,login,type_user,description,broadcaster_type,view_count,created_at)
-        all_users.append(current_user)
+def pipeline_nlp(df_sample,lang,stop_words,no_topics):
+    df_sample=tokenize_text(df_sample,'content',lang)
+    
+    vectorizer,document_matrix,feature_names=vectorize(df_sample['lemma'],5000,stop_words)    
 
-    df_users=pd.DataFrame.from_records(all_users,columns=['user_id','login','user_type','description','broadcaster_type','view_count','created_at'])
+    nmf_model = NMF(n_components=no_topics, random_state=42, alpha=.1, l1_ratio=.5, init='nndsvd',max_iter=1000).fit(document_matrix)
+    
+    df_sample,nmf_topic_values=get_topics(df_sample,nmf_model,document_matrix)
+    df_topics=display_topics(nmf_model, feature_names, 0.4, 3)
+    
+    #preparation données du wordcloud
+    dense = document_matrix.todense()
+    lst1 = dense.tolist()
+    df_tfidf = pd.DataFrame(lst1, columns=feature_names).T.sum(axis=1).sort_values(axis=0,ascending=False)[:50]
+    #génération du wordcloud
+    Cloud = WordCloud(background_color="white", max_words=50,width=800, height=500).generate_from_frequencies(df_tfidf)
+    
+    return df_sample,df_topics,Cloud
 
-    return df_users
+def vectorize(documents,no_terms,stop_words):
+    # NMF uses the tf-idf count vectorizer
+    # Initialise the count vectorizer with the English stop words
+    vectorizer = TfidfVectorizer(max_df=0.5, min_df=2, max_features=no_terms, stop_words=stop_words,ngram_range=(1,2))
+    # Fit and transform the text
+    document_matrix = vectorizer.fit_transform(documents)
+    #get features
+    feature_names = vectorizer.get_feature_names()
+    return vectorizer,document_matrix,feature_names
+
+def get_topics(df,nmf_model,document_matrix):
+    #Use NMF model to assign topic to papers in corpus
+    nmf_topic_values = nmf_model.transform(document_matrix)
+    df['NMF Topic'] = nmf_topic_values.argmax(axis=1)
+    df['NMF Proba']=nmf_topic_values.max(axis=1)
+    return df,nmf_topic_values
+
+@st.cache()
+def display_topics(model, feature_names, seuil, no_top_words):
+ 
+    l_topics=[]
+    for topic_idx, topic in enumerate(model.components_):
+        topic_str=''
+        for i in topic.argsort()[:-no_top_words - 1:-1]:
+            if topic[i]>seuil:
+                topic_str=topic_str+feature_names[i]+', '
+
+        l_topics.append(topic_str[:-2])
+    
+    df_topics=pd.DataFrame(l_topics,columns=["topic_title"])
+    df_topics['index']=df_topics.index
+    
+    return df_topics
+
+@st.cache()
+def define_no_topics(df):
+    no_topics=20
+    size=len(df)
+    
+    if size<750:
+        no_topics=15
+        if size<500:
+            no_topics=10
+            if size<250:
+                no_topics=8       
+    
+    return no_topics
+
+######################################
+# DATA VIZ
+######################################
+
+@st.cache()
+def get_table_download_link(df,channel):
+    names=df.columns
+    csv = df.to_csv(header=names, sep=';',encoding='utf-8',index=False, decimal=",")
+    b64 = base64.b64encode(csv.encode()).decode() 
+    href = f'<div style=\"background-color: #e1e1e1; padding: 10px 10px 10px 10px;\"><center><a href="data:file/csv;base64,{b64}" download="video_{channel}.csv"><button style=\"background-color: #14A1A1;border: none;color: white;padding: 10px;text-align: center;text-decoration: none;display: inline-block;font-size: 12px;width: 300px;margin: 4px 2px;border-radius: 8px;\"><b>Télécharger les données brutes</b></button></a></center></div>'
+    return href
+
 
 @st.cache()
 def human_format(num):
@@ -76,80 +156,246 @@ def human_format(num):
     # add more suffixes if you need them
     return '%.2f%s' % (num, ['', 'K', 'M', 'G', 'T', 'P'][magnitude])
 
-@st.cache()
-def parsing_videos(video_json):
-    df_videos=pd.DataFrame()
-    all_vids=[]
-
-    if 'data' in video_json:
-        videos=video_json['data']
-        for video in videos:
-            video_id=video["id"]
-            user_id=video['user_id']
-            user_login=video['user_login']
-            user_name=video['user_name']
-            title=video["title"]
-            description=video['description']
-            created_at=video['created_at']
-            published_at=video['published_at']
-            url=video['url']
-            if video['thumbnail_url'] is None:
-                thumbnail_url="https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Circle-icons-image.svg/240px-Circle-icons-image.svg.png"
-            else:
-                thumbnail_url=video['thumbnail_url'].replace("%{width}","200").replace("%{height}","200")
-            viewable=video['viewable']
-            view_count=video['view_count']
-            language=video['language']
-            vid_type=str(video['type'])
-            duration=video['duration']
-            
-            current_vid=(video_id,user_id,user_login,user_name,title,description,created_at,published_at,url,thumbnail_url,
-                         viewable,view_count,language,vid_type,duration)
-            all_vids.append(current_vid)
-        df_videos=pd.DataFrame.from_records(all_vids,columns=['video_id','user_id','login','user_name','title','description',
-                                                              'created_at','published_at','url','thumbnail_url','viewable',
-                                                              'view_count','language','video_type','duration'])
-        
-        df_videos["month"]=pd.to_datetime(df_videos['created_at']).dt.strftime('%Y-%m')
-        df_videos[["hours","min","sec"]]=df_videos["duration"].str.extract(r"((\d+)h)?((\d+)m)?((\d+)s)",expand=True)[[1,3,5]].fillna(0)
-        df_videos["duration_s"]=df_videos['hours'].astype(int)*3600+df_videos['min'].astype(int)*60+df_videos["sec"].astype(int)
-        df_videos["heures de videos"]=df_videos['duration_s'].astype(int)/3600  
-        
-    return df_videos
-
 
 @st.cache()
-def get_table_download_link(df,channel):
-    """Generates a link allowing the data in a given panda dataframe to be downloaded
-    in:  dataframe
-    out: href string
-    """
-    names=df.columns
-    csv = df.to_csv(header=names, sep=';',encoding='utf-8',index=False, decimal=",")
-    b64 = base64.b64encode(csv.encode()).decode()  # some strings <-> bytes conversions necessary here
-    href = f'<a href="data:file/csv;base64,{b64}" download="video_{channel}.csv"><button style=\"background-color: #14A1A1;border: none;color: white;padding: 10px;text-align: center;text-decoration: none;display: inline-block;font-size: 12px;margin: 4px 2px;border-radius: 8px;\">Télécharger le CSV</button></a>'
-    return href
+def process_histogram(result_app):
+    df_histogram=pd.DataFrame(result_app['histogram'],columns=['reviews'])
+    df_histogram['Note']= df_histogram.index +1 
+    df_histogram["%reviews"]=(df_histogram['reviews']/df_histogram['reviews'].sum()) * 100
+    df_histogram["%reviews"]=df_histogram["%reviews"].round(1).astype(str)+'%'
+    
+    return df_histogram
 
-def create_barchart_12month(df,x,y,color,title):
-    if len(df)>0:
-        if len(df)>=12:
-            st.subheader(title+" - 12 derniers mois d'activité")
-            fig = px.bar(df[:12], x=x, y=y,color=color)
-            st.plotly_chart(fig, use_container_width=True, sharing='streamlit')
-        else:
-            st.subheader(title+" - derniers mois d'activité connus")
-            fig = px.bar(df, x=x, y=y,color=color)
-            st.plotly_chart(fig, use_container_width=True, sharing='streamlit')     
+@st.cache()
+def histogram_score(df,x,y,text,marker_color):
+    x_data=list(df[x])
+    y_data=list(df[y])
+    text_data=list(df[text].astype(str))
+    
+    fig = go.Figure(go.Bar(
+                x=x_data,
+                y=y_data,
+                orientation='h', marker_color=marker_color,text=text_data),
 
-    else:
-        st.subheader(title+" - derniers mois d'activité connus")
-        st.info("La chaine est inactive")
-        
+                layout=go.Layout(title=go.layout.Title(text="Répartition des avis"))
+                   )  
+
+    fig.update_traces(textposition='inside')
+    
     return fig
+
+
+@st.cache()
+def barchart_sentiment_relative(df_reviews):
+    
+    df_gb=df_reviews[['month','reviewId','score']].groupby(["month"]).agg({"reviewId":"nunique","score":"mean"}).reset_index()
+    df_sentiment=df_reviews[['month','reviewId','sentiment']].groupby(["month","sentiment"]).agg({"reviewId":"nunique"})
+    df_sentiment['%reviews']=df_sentiment.groupby(level=0).apply(lambda x:100 * x / float(x.sum()))
+    df_sentiment=df_sentiment.reset_index()
+    df_sentiment=df_sentiment.pivot(index="month", columns="sentiment", values="%reviews").reset_index()
+    df_sentiment["reviews_count"]=df_gb['reviewId']
+    df_sentiment["score"]=df_gb['score']   
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    
+    if "positif" in df_sentiment.columns:
+        fig.add_trace(go.Bar(
+            y=df_sentiment["positif"],
+            x=df_sentiment["month"],
+            name="positif",
+            marker=dict(
+                color='#57bb8a',
+                line=dict(color='rgba(0,128,0, 0.5)', width=0.05)
+            )
+        ))
+    if "neutre" in df_sentiment.columns:
+        fig.add_trace(go.Bar(
+            y=df_sentiment["neutre"],
+            x=df_sentiment["month"],
+            name="neutre",
+            marker=dict(
+                color='#ffcf02',
+                line=dict(color='rgba(0,0,255, 0.5)', width=0.05)
+            )
+        ))
+        
+    if "négatif" in df_sentiment.columns:
+        fig.add_trace(go.Bar(
+            y=df_sentiment["négatif"],
+            x=df_sentiment["month"],
+            name="négatifs",
+            marker=dict(
+                color='#ff6f31',
+                line=dict(color='rgba(128,0,0, 0.5)', width=0.05)
+            )
+        ))
+    fig.add_trace(go.Scatter(
+            x=df_sentiment["month"], 
+            y=df_sentiment["score"],
+            mode='lines+markers',
+            name='#score moyen',
+            line=dict(color='LightSlateGray', width=2)
+                ),
+          secondary_y=True)
+    
+    fig.update_layout(
+            yaxis=dict(
+            title_text="Reviews(%)",
+            ticktext=["0%", "20%", "40%", "60%","80%","100%"],
+            tickvals=[0, 20, 40, 60, 80, 100],
+            tickmode="array",
+            titlefont=dict(size=15),
+        ),
+        autosize=False,
+        width=1000,
+        height=400,
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        title={
+            'text': "Evolution du rating",
+            'y':0.96,
+            'x':0.5,
+            'xanchor': 'center',
+            'yanchor': 'top'},
+        barmode='relative') 
+    
+    fig.update_yaxes(title_text="Score moyen", secondary_y=True,range=[0, 5])
+
+    return fig,df_sentiment
+
+@st.cache()
+def barchart_dev_replies(df):
+    
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    fig.add_trace(go.Bar(
+        y=df["Réponses"],
+        x=df["month"],
+        name="Réponses du développeur",
+        marker=dict(
+            color='#F08080',
+            line=dict(color='rgba(0,128,0, 0.5)', width=0.05)
+        )
+    ))
+
+    fig.add_trace(go.Scatter(
+            x=df["month"],
+            y=df["Taux de réponse"],
+            mode='lines+markers',
+            name='Taux de réponse',
+            line=dict(color='LightSlateGray', width=2)
+                ),
+          secondary_y=True)
+    
+    fig.update_layout(
+            yaxis=dict(
+            title_text="Reviews",
+            tickmode="array",
+            titlefont=dict(size=15),
+        ),
+        autosize=False,
+        width=1000,
+        height=400,
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        title={
+            'text': "Evolution des réponses du développeur",
+            'y':0.96,
+            'x':0.5,
+            'xanchor': 'center',
+            'yanchor': 'top'},
+        barmode='stack') 
+    
+    fig.update_yaxes(title_text="Taux de réponse", secondary_y=True,range=[0, 1],            ticktext=["0%", "20%", "40%", "60%","80%","100%"],
+            tickvals=[0, 0.2, 0.4, 0.6, 0.8, 1.0])
+
+    return fig
+
+
+@st.cache()
+def barchart_count_reviews(df):
+    
+
+    fig = make_subplots(specs=[[{"secondary_y": False}]])
+
+    fig.add_trace(go.Bar(
+        y=df["reviewId"],
+        x=df["month"],
+        name="Reviews",
+        marker=dict(
+            color='#434444',
+            line=dict(color='rgba(0,128,0, 0.5)', width=0.05)
+        )
+    ))
+
+    fig.update_layout(
+            yaxis=dict(
+            title_text="Reviews",
+            tickmode="array",
+            titlefont=dict(size=15),
+        ),
+        autosize=True,
+        width=1000,
+        height=400,
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        title={
+            'text': "Nombre de reviews collectées",
+            'y':0.96,
+            'x':0.5,
+            'xanchor': 'center',
+            'yanchor': 'top'},
+        barmode='stack') 
    
+
+    return fig
+
+
+##################
+# CAPTURE DE DONNEES
+
+@st.cache()
+def query_app(app_id,lang,country):
+    return app(app_id,lang=lang, country=country)
+
+@st.cache()
+def query_reviews(app_id,lang,country):
+    return reviews_all(app_id,sleep_milliseconds=0, lang=lang, country=country, sort=Sort.NEWEST, filter_score_with=None)
+
+def parsing_reviews(result_reviews,app_id,country):
+    
+    #parsing des reviews
+    df_reviews=json_normalize(result_reviews)
+
+    df_reviews['sentiment']= np.where(df_reviews['score']>3,"positif",np.where(df_reviews['score']<3,"négatif","neutre"))
+    df_reviews['url']="https://play.google.com/store/apps/details?id="+str(app_id)+"&gl="+country+"&reviewId="+df_reviews['reviewId']   
+    df_reviews['Réponses']=np.where(df_reviews["replyContent"].str.len()>0,1,0)
+    
+    return df_reviews
+
+def sample_reviews(df_reviews,dt_min_date):
+    if len(df_reviews)>1000:
+        df_reviews=df_reviews[df_reviews['content'].str.len()>0]
+        df_reviews_subset=df_reviews[df_reviews['at']>dt_min_date]
+        if len(df_reviews_subset)>1000:
+            df_sample=df_reviews_subset.sample(n=1000, random_state=42)
+        else:
+            df_sample=df_reviews_subset
+    else:
+        df_sample=df_reviews[df_reviews['content'].str.len()>0]
+        
+    return df_sample[['reviewId','content','sentiment','score']]
+
+
+
+
+
+
 def main():
     st.set_page_config(
-        page_title="Twitch - vidéos",
+        page_title="Google Play Analysis",
         page_icon="🧊",
         layout="wide",
         initial_sidebar_state="expanded",
@@ -157,86 +403,230 @@ def main():
     
     ###################################
     # PARAMETRES DE LA SIDEBAR
-    st.sidebar.title('Paramètres')          
-    channel=st.sidebar.text_input("Entrez un nom de chaine Twitch", value='gotaga', max_chars=None, key=None, type='default') 
-    st.sidebar.write("Entrez vos clés API, après avoir enregistré une <a href=\"https://dev.twitch.tv/console/apps\" target=\"_blank\">application</a>",unsafe_allow_html=True)
-    key=st.sidebar.text_input("API KEY", value='xxxx', max_chars=None, key=None, type='default')   
-    secret=st.sidebar.text_input("SECRET KEY", value='xxxx', max_chars=None, key=None, type='default')
-    
-    # initialisation des paramètres de requête API
-    periode=TimePeriod.ALL
-    video_type=VideoType.ALL
-    classement=SortMethod.TIME
+    st.sidebar.title('Paramètres')
+    st.sidebar.write("<p>Cet outil vous permet d'analyser les commentaires associés à une application disponible sur Google Play Store. Il vous suffit de préciser l'identifiant de l'application et sa zone géographique. L'identifiant d'une application Android est repérable dans l'URL redirigeant vers Google Play Store. Ex : https:// play.google.com/store/apps/details?id=<b>com.lemonde.androidapp</b>&gl=FR</p>",unsafe_allow_html=True)
+    app_id=st.sidebar.text_input("Entrez l'ID de l'application à analyser", value='com.lemonde.androidapp', max_chars=None, key=None, type='default') 
+    lang=st.sidebar.selectbox("Sélectionnez la langue des reviews à capturer",['fr','en'], index=0) 
+    country=st.sidebar.selectbox("Sélectionnez la zone géographique du Google Play Store",['fr','gb','us'], index=0)
 
     
-    if st.sidebar.button("Valider"):       
-        with st.spinner("Connexion à Twitch"):
-            try:    
-                twitch=create_instance(key,secret)
-            except:
-                st.error("Impossible de se connecter à l'API Twitch, vérifiez vos identifiants")
-               
-        with st.spinner("Récupération des infos de la chaine"):
-            user_info=dict()
-            user_info["data"]=[]
-            try:
-                users_json=twitch.get_users(logins=channel)
-                user_info["data"]=user_info["data"]+users_json['data']
-                                
-                st.write("<div style=\"background-color: #e1e1e1;float:left;padding:10px 10px 10px 10px;width:100%;border-radius:5px;\"><div><div style=\"float: left;width:20%;\"><a href=\"http://www.twitch.com/"+user_info["data"][0]["login"]+"\" target=\"_blank\"><img src=\""+user_info["data"][0]["profile_image_url"]+"\" style=\"border-radius: 50%;\" width=\"150\"/></img></a></div><div style=\"float: left;width:80%;\"><h1>"+user_info["data"][0]["display_name"]+"</h1><br/>"+user_info["data"][0]["description"]+"<br/><hr><button style=\"background-color: #F63366;border: none;color: white;padding: 10px;text-align: center;text-decoration: none;display: inline-block;font-size: 12px;margin: 4px 2px;border-radius: 8px;\">"+str(human_format(user_info["data"][0]["view_count"]))+" vues cumulées</button>&nbsp;<button style=\"background-color: #F63366;border: none;color: white;padding: 10px;text-align: center;text-decoration: none;display: inline-block;font-size: 12px;margin: 4px 2px;border-radius: 8px;\">"+user_info["data"][0]["broadcaster_type"]+"</button>&nbsp;<button style=\"background-color: #F63366;border: none;color: white;padding: 10px;text-align: center;text-decoration: none;display: inline-block;font-size: 12px;margin: 4px 2px;border-radius: 8px;\">Chaine créée le "+datetime.strptime(user_info["data"][0]["created_at"], "%Y-%m-%dT%H:%M:%S.%fZ").strftime("%d-%m-%Y")+"</button></div></div></div>",unsafe_allow_html=True)
-                
+
+    if st.sidebar.button("Valider"):
         
-                df_videos=pd.DataFrame()
-                with st.spinner("Analyse des vidéos en cours"):
-                    try:
-                        video_data=collect_video(twitch,user_info["data"][0]["id"],periode,classement,video_type)
-                        df_videos=parsing_videos(video_data)
+        
+        try:
+            result_app=query_app(app_id,lang,country)
+#             df_app=json_normalize(result_app)
 
-                        # on crée des df agrégés
-                        df_vid=df_videos.groupby(["month","video_type"]).agg({"video_id":"nunique"}).reset_index()\
-                        .sort_values(by="month",ascending=False)   
-                        df_vid["video_type"]=df_vid["video_type"].str.replace("VideoType.","")
-                        df_month=df_videos.groupby("month").agg({"heures de videos":"sum","view_count":"sum"}).reset_index().sort_values(by="month",ascending=False) 
+            if result_app["free"] is True:
+                free="App Gratuite"
+            else:
+                free="App payante : "+str(result_app["price"])+result_app["currency"]
+            if result_app['containsAds'] is True:
+                containsAds="Contient des publicités"
+            else:
+                containsAds="Ne contient pas de publicités"
+            if result_app["inAppProductPrice"] is None:
+                inApp="Pas d'achat in App"
+            else:
+                inApp="Achats in App : "+str(result_app["inAppProductPrice"])
+            if result_app['ratings'] is not None:
+                rating=human_format(result_app['ratings'])
+            else:
+                rating=0
 
-                        # on calcule le mois le plus ancien sur une période de 12 derniers mois d'activité
-                        min_month=df_vid["month"][:12].min()  
+            st.write("<div style=\"background-color: #e1e1e1;float:left;padding:20px 20px 20px 20px;width:100%;border-radius:5px;\"><div><div style=\"float: left;width:20%;\"><a href=\""+result_app['url']+"\" target=\"_blank\"><img src=\""+result_app['icon']+"\" style=\"border-radius: 50%; display: block; margin-left: auto; margin-right: auto;width: 50%;\"></img></a></div><div style=\"float: left;width:80%;\"><h1>"+result_app['title']+"</h1><br/>"+result_app['summaryHTML']+"<br/><hr><button style=\"background-color: #F63366;border: none;color: white;padding: 10px;text-align: center;text-decoration: none;display: inline-block;font-size: 12px;margin: 4px 2px;border-radius: 8px;\">"+result_app['genre']+"</button>&nbsp;<button style=\"background-color: #F63366;border: none;color: white;padding: 10px;text-align: center;text-decoration: none;display: inline-block;font-size: 12px;margin: 4px 2px;border-radius: 8px;\">Développé par "+result_app['developer']+"</button>&nbsp;<button style=\"background-color: #F63366;border: none;color: white;padding: 10px;text-align: center;text-decoration: none;display: inline-block;font-size: 12px;margin: 4px 2px;border-radius: 8px;\">"+result_app['contentRating']+"</button></div></div></div>",unsafe_allow_html=True)
 
-                        ###################################
-                        # AFFICHAGE DES KEY METRICS
-                        st.subheader("Key metrics")
-                        st.write("<table style=\"border-collapse: collapse;margin: 25px 0;font-size: 0.9em;font-family: sans-serif;min-width: 400px;width:100%;box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);\"><thead style=\"background-color: #F63366;color: #ffffff;text-align: left;\"><tr><th>KPI</th><th>Depuis la création de la chaine</th><th>12 derniers mois d'activité</th></tr></thead><tbody><tr><td><b>#vidéos</b></td><td>"+str(len(df_videos["video_id"].unique()))+" vidéos</td><td>"+str(df_vid["video_id"][:12].sum())+" vidéos</td></tr><tr><td><b>#vues</b></td><td>"+str(human_format(df_videos["view_count"].sum()))+" vues</td><td>"+str(human_format(df_month["view_count"][:12].sum()))+" vues</td></tr><tr><td><b>Moyenne de vues par vidéo</b></td><td>"+str(round(df_videos["view_count"].mean()))+" vues</td><td>"+str(round(df_videos[df_videos['month']>=min_month]["view_count"].mean()))+" vues</td></tr><tr><td><b>Durée cumulée des vidéos</b></td><td>"+str(round(df_videos["heures de videos"].sum()))+" heures</td><td>"+str(round(df_videos[df_videos['month']>=min_month]["heures de videos"].sum()))+" heures</td></tr></tbody></table>", unsafe_allow_html=True)
+            col1, col2 = st.beta_columns(2)
+            with col1:
 
-                        ###################################
-                        # AFFICHAGE DES DIAGRAMMES BARRES
+                st.write("<h3>Key metrics & modèle économique</h3>", unsafe_allow_html=True)
+                st.write("<table style=\"border-collapse: collapse;margin: 25px 0;font-size: 0.9em;font-family: sans-serif;min-width: 400px;width:100%;box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);\"><thead style=\"background-color: #F63366;color: #ffffff;text-align: left;\"><tr><th>KPI</th><th>Depuis la création de l'app</th></tr></thead><tbody><tr><td><b>#reviews</b></td><td>"+str(human_format(result_app['reviews']))+" reviews</td></tr><tr><td><b>#ratings</b></td><td>"+str(rating)+" ratings</td></tr><tr><td><b>Installations</b></td><td>"+str(result_app['installs'])+"</td></tr><tr><td><b>Score moyen</b></td><td>"+str(round(result_app['score'],2))+"</td></tr><tr><td><b>Modèle économique</b></td><td>"+free+"</td><tr><td><b>Intégration e-commerce</b></td><td>"+inApp+"</td></tr><tr><td><b>Inclus de la publicité</b></td><td>"+containsAds+"</td></tbody></table>", unsafe_allow_html=True)
+            with col2:
+                try:
+                    df_histogram=process_histogram(result_app)                   
+                    
+                    fig=histogram_score(df_histogram,'reviews','Note','%reviews',['#ff6f31','#ff9f02','#ffcf02','#9ace6a','#57bb8a'])
+                    st.plotly_chart(fig, use_container_width=False, sharing='streamlit') 
+                except:
+                    pass
+                    st.info("Il n'y a pas de reviews")
+       
+        except:
+            pass
+            st.error("Impossible de collecter les infos sur cette application")
+            
+            
+        try:
+            with st.spinner("Collecte des reviews en cours"):
+                # Récupération des reviews
+                result_reviews = query_reviews(app_id,lang,country)
 
-                        create_barchart_12month(df_vid,'month','video_id',"video_type","#Vidéos")    
-                        create_barchart_12month(df_month,'month','heures de videos',None,"#Durée des contenus")    
-                        create_barchart_12month(df_month,'month','view_count',None,"#Vues")
+            if len(result_reviews)>0:
 
-                        ###################################
-                        # AFFICHAGE DES VIDEOS LES PLUS CONSULTEES
-                        st.subheader("Vidéos les plus consultées (12 derniers mois) :")
-                        html_str=""
-                        df_top=df_videos[df_videos["month"]>=min_month].sort_values(by="view_count", ascending=False)[:5].reset_index()
-                        for i,vid in df_top.iterrows():
-                            html_str=html_str+"<tr style=\"width:100%\"><td><b>"+str(i+1)+"</b></td><td><img src=\""+vid.thumbnail_url+"\" width=\"100\"></img></td><td><a href=\""+vid.url+"\" target=\"_blank\">"+vid.title+"</a><br/>Créée le : "+datetime.strptime(vid.created_at, "%Y-%m-%dT%H:%M:%SZ").strftime("%d-%m-%Y %H:%M:%S")+"<br/>Durée : "+vid.duration+"<br/><b>"+str(human_format(vid.view_count))+" vues</b></td></tr>"                
+                try:
+                    # Mise en forme des données
+                    df_reviews=parsing_reviews(result_reviews,app_id,country)
 
-                        st.write("<table style=\"border-collapse: collapse;margin: 25px 0;font-size: 0.9em;font-family: sans-serif;min-width: 400px;width:100%;box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);\"><thead style=\"background-color: #F63366;color: #ffffff;text-align: left;\"><tr><th>Rang</th><th>thumbnail</th><th>Vidéos les plus vues</th></tr></thead><tbody>"+html_str+"</tbody></table>",unsafe_allow_html=True)
+                    #calcul de la date correspondant au dernier trimestre et au dernier semestre
+                    dt_min_date=(df_reviews["at"].max()-timedelta(days=90))
+                    dt_min_date_12months=(df_reviews["at"].max()-timedelta(days=365))
 
-                        ###################################
-                        # AFFICHAGE DES DONNEES COLLECTEES
-                        st.subheader("Aperçu des vidéos :")
-                        cols=['video_id','login','title','description','published_at','url','view_count','video_type','duration']
-                        st.markdown(get_table_download_link(df_videos[cols],channel), unsafe_allow_html=True)
-                        st.write(df_videos[cols])
 
-                    except:
-                        pass
-                        st.error("Impossible de récupérer les vidéos")
+                    df_reviews.sort_values(by='at', ascending=True,inplace=True)
+                    df_reviews["month"]=pd.to_datetime(df_reviews['at']).dt.strftime('%Y-%m')
 
-            except:
-                pass
-                st.error("Impossible de récupérer les infos de cette chaine") 
+                    #agrégation des données (réponses du développeur)
+                    df_dev=df_reviews[['month','Réponses']].groupby("month").agg({'Réponses':'sum'}).reset_index()
+                    df_dev['Total reviews']=df_reviews.groupby("month").agg({'reviewId':'nunique'}).reset_index()['reviewId']
+                    df_dev['Taux de réponse']=df_dev['Réponses']/df_dev['Total reviews']    
+
+                    #Affichage des reviews collectées
+                    st.subheader("Commentaires collectés")
+                    fig=barchart_count_reviews(df_reviews.groupby("month").agg({'reviewId':'nunique'}).reset_index())
+                    st.plotly_chart(fig, use_container_width=True, sharing='streamlit')
+
+                    #Analyse des notes déposées
+                    st.subheader("Evolution de la perception")
+                    fig2,df_sentiment=barchart_sentiment_relative(df_reviews) 
+                    st.write(str(len(df_reviews))+ " commentaires ont été posté depuis le "+str(df_reviews["at"].min().strftime('%d-%m-%Y'))+" ("+str(len(df_reviews[df_reviews["at"]>dt_min_date_12months]))+" sur les 12 derniers mois) . La notation moyenne la plus basse était de "+str(round(df_sentiment['score'].min(),2))+" le "+ str(df_sentiment[df_sentiment['score'] == min(df_sentiment['score'])]['month'].values[0])+" . La notation la plus élevée était de "+str(round(df_sentiment['score'].max(),2))+ " le "+ str(df_sentiment[df_sentiment['score'] == max(df_sentiment['score'])]['month'].values[0]), unsafe_allow_html=True) 
+
+                    st.plotly_chart(fig2, use_container_width=True, sharing='streamlit')
+                except:
+                    pass
+                    st.info("Impossible d'analyser les reviews")
+
+                # Analyse des réponses du developpeur    
+                st.subheader("Réponses du développeur")
+                if len(df_reviews[df_reviews["replyContent"].str.len()>0])>0:
+                    nb_replies=len(df_reviews[df_reviews["replyContent"].str.len()>0])
+                    nb_replies_12months=len(df_reviews[(df_reviews["replyContent"].str.len()>0) & (df_reviews["at"]>dt_min_date_12months)])
+                    per_replies=(nb_replies/len(df_reviews))*100
+                    st.write(str(nb_replies)+ " commentaires ont été posté depuis le "+str(df_reviews[df_reviews["replyContent"].str.len()>0]["at"].min().strftime('%d-%m-%Y'))+" ("+str(nb_replies_12months)+" sur les 12 derniers mois) . Le taux de réponse moyen s'élève à "+str(round(per_replies,1))+"%.", unsafe_allow_html=True)
+                    fig=barchart_dev_replies(df_dev)
+                    st.plotly_chart(fig, use_container_width=True, sharing='streamlit')
+                else:
+                    st.info("Le développeur n'a répondu a aucun commentaire")
+
+                # on splitte nos reviews selon le sentiment. On retient un max de 1000 reviews sur les 3 derniers mois   
+                df_negative_reviews=sample_reviews(df_reviews[df_reviews['score']<4],dt_min_date)
+                df_positive_reviews=sample_reviews(df_reviews[df_reviews['score']>3],dt_min_date)
+                stop_words=get_stopwords(lang)
+                
+                # Pipeline NLP sur les reviews négatives
+                if len(df_negative_reviews)>100:  
+                    with st.spinner("Analyse de "+str(len(df_negative_reviews))+" reviews récentes en cours - un peu de patience ! :)"):
+                        no_topics=define_no_topics(df_negative_reviews)
+                        df_negative_reviews, df_neg_topics, neg_cloud = pipeline_nlp(df_negative_reviews,lang,stop_words,no_topics)
+
+                        neg_is_ok=True
+
+                else:
+                    neg_is_ok=False
+
+                # Pipeline NLP sur les reviews positives
+                if len(df_positive_reviews)>100:
+                    with st.spinner("Analyse de "+str(len(df_positive_reviews))+" reviews récentes en cours - un peu de patience ! :)"):
+                        no_topics=define_no_topics(df_positive_reviews)
+                        df_positive_reviews, df_pos_topics, pos_cloud = pipeline_nlp(df_positive_reviews,lang,stop_words,no_topics)
+                        pos_is_ok=True
+                else:
+                    pos_is_ok=False
+
+                # Affichages des résultats NLP
+                if pos_is_ok is True or neg_is_ok is True:
+                    st.subheader("Termes spécifiques")
+                    st.write("<p>Les 50 termes les plus spécifiques aux reviews récentes (TFIDF)</p><br/>",unsafe_allow_html=True)             
+                    col1, col2 = st.beta_columns(2)
+                    with col1:
+
+                        st.write("<h4>Reviews négatives</h4><br/><br/>",unsafe_allow_html=True)  
+                        if neg_is_ok is True :
+                            plt.imshow(neg_cloud, interpolation='bilinear')
+                            plt.axis("off")
+                            st.image(neg_cloud.to_array(),use_column_width='auto')
+
+                        else:
+                            st.info("Il n'y a pas suffisamment de reviews négatives à analyser")
+
+                    with col2:
+                        st.write("<h4>Reviews positives</h4><br/><br/>",unsafe_allow_html=True)
+                        if pos_is_ok is True :
+                            plt.imshow(pos_cloud, interpolation='bilinear')
+                            plt.axis("off")
+                            st.image(pos_cloud.to_array(),use_column_width='auto')
+                        else:
+                            st.info("Il n'y a pas suffisamment de reviews positives à analyser")
+
+                    # Affichage des résultats du topic modeling
+                    st.subheader("Sujets principaux")
+                    st.write("Les reviews récentes sont classées en 10 sujets principaux.")
+
+                    col1, col2 = st.beta_columns(2)
+                    with col1:
+                        st.write("<h4>Reviews négatives</h4><br/><br/>",unsafe_allow_html=True)
+                        if neg_is_ok is True :
+                            df_negative_reviews=pd.merge(df_negative_reviews,df_neg_topics, how='left', left_on='NMF Topic', right_on='index')
+                            df_pie_neg = df_negative_reviews[["topic_title","reviewId"]].groupby(["topic_title"]).agg({"reviewId":"nunique"}).reset_index().sort_values(by='reviewId',ascending=False)
+
+                            fig = px.pie(df_pie_neg, values='reviewId', names='topic_title', title='Principaux pain points')
+                            st.plotly_chart(fig, use_container_width=True, sharing='streamlit')
+
+                        else:
+                            st.info("Il n'y a pas suffisamment de reviews négatives à analyser")
+
+                    with col2:
+                        st.write("<h4>Reviews positives</h4><br/><br/>",unsafe_allow_html=True)
+
+                        if pos_is_ok is True :
+                            df_positive_reviews=pd.merge(df_positive_reviews,df_pos_topics, how='left', left_on='NMF Topic', right_on='index')
+
+                            df_pie_pos = df_positive_reviews[["topic_title","reviewId"]].groupby(["topic_title"]).agg({"reviewId":"nunique"}).reset_index().sort_values(by='reviewId',ascending=False)
+
+                            fig = px.pie(df_pie_pos, values='reviewId', names='topic_title', title='Principaux points d\'appréciation')
+                            st.plotly_chart(fig, use_container_width=True, sharing='streamlit')
+                        else:
+                            st.info("Il n'y a pas suffisamment de reviews positives à analyser")
+
+
+                    if pos_is_ok is True :
+                        st.subheader("Verbatims positifs")
+                        st.write("Consultez les reviews les plus pertinentes par sujet") 
+                        # POUR CHAQUE TOPIC, ON AFFICHE LES REVIEWS CLASSEES            
+                        for n in sorted(df_positive_reviews['NMF Topic'].unique()):
+                            d=df_positive_reviews[df_positive_reviews['NMF Topic']==n].sort_values(by='NMF Proba',ascending=False)
+
+                            with st.beta_expander("Sujet n°"+str(n+1)+" - "+d['topic_title'].min()+" - "+str(round(len(d)/len(df_positive_reviews)*100,1))+"% des reviews récentes - score moyen : "+str(round(d['score'].mean(),1))):
+                                 st.table(d[['content','sentiment']][:15].assign(hack='').set_index('hack'))
+
+
+                    if neg_is_ok is True :
+                        st.subheader("Verbatims négatifs")
+                        st.write("Consultez les reviews les plus pertinentes par sujet") 
+                        # POUR CHAQUE TOPIC, ON AFFICHE LES REVIEWS CLASSES            
+                        for n in sorted(df_negative_reviews['NMF Topic'].unique()):
+                            d=df_negative_reviews[df_negative_reviews['NMF Topic']==n].sort_values(by='NMF Proba',ascending=False)
+
+                            with st.beta_expander("Sujet n°"+str(n+1)+" - "+d['topic_title'].min()+" - "+str(round(len(d)/len(df_negative_reviews)*100,1))+"% des reviews récentes - score moyen : "+str(round(d['score'].mean(),1))):
+                                 st.table(d[['content','sentiment']][:15].assign(hack='').set_index('hack'))    
+
+
+
+                    cols=['reviewId','userName','content','score','thumbsUpCount','at','replyContent','repliedAt']
+                    st.markdown(get_table_download_link(df_reviews[cols],result_app['title']), unsafe_allow_html=True)
+                else:
+                    st.info("Il n'y a pas suffisamment de reviews à analyser")
+
+            else:
+                    st.info("Il n'y a pas de reviews à analyser")
+
+
+
+        except:
+            pass
+            st.error("Impossible de récupérer les reviews pour cette application")
+
+            
     st.sidebar.write("<br/><br/><p><center><a href=\"http://www.erwanlenagard.com\" target=\"_blank\" style=\"color:#434444;\">@Erwan Le Nagard</a></center></p>", unsafe_allow_html=True)
 if __name__ == "__main__":
     main()    
