@@ -56,7 +56,7 @@ def tokenize_text(df,col_name,lang):
         nlp.add_pipe('pos', name='pos', after='parser')
     i=0    
     
-    for doc in nlp.pipe(df[col_name].astype('unicode').values, batch_size=500,n_process=2):
+    for doc in nlp.pipe(df[col_name].astype('unicode').values, batch_size=1000,n_process=1):
         i=i+1
         if doc.has_annotation("DEP"):          
             lemma.append([n.lemma_.lower().translate(str.maketrans('', '', string.punctuation+'’')) for n in doc if n.pos_ in ["VERB","NOUN","ADJ","PROPN","ADV","SYM"]])
@@ -475,7 +475,7 @@ def main():
 
 
 
-            if len(df_negative_reviews)>100:  
+            if len(df_negative_reviews)>10:  
                 with st.spinner("Analyse de "+str(len(df_negative_reviews))+" reviews récentes en cours - un peu de patience ! :)"):
                     no_topics=define_no_topics(df_negative_reviews)
                     df_negative_reviews, df_neg_topics, df_neg_tfidf, document_matrix_neg, feature_names_neg, neg_cloud = pipeline_nlp(df_negative_reviews,lang,stop_words,no_topics)
@@ -485,7 +485,7 @@ def main():
             else:
                 neg_is_ok=False
 
-            if len(df_positive_reviews)>100:
+            if len(df_positive_reviews)>10:
                 with st.spinner("Analyse de "+str(len(df_positive_reviews))+" reviews récentes en cours - un peu de patience ! :)"):
                     no_topics=define_no_topics(df_positive_reviews)
                     df_positive_reviews, df_pos_topics, df_pos_tfidf, document_matrix_pos, feature_names_pos, pos_cloud = pipeline_nlp(df_positive_reviews,lang,stop_words,no_topics)
